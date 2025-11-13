@@ -1,0 +1,11 @@
+/backend/.classpath
+/backend/.project
+/backend/target/
+/backend/.settings/
+/frontend/node_modules/
+/frontend/dist/
+/infra/*.env
+.env
+.DS_Store
+.idea/
+.vscode/
