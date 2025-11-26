@@ -13,7 +13,7 @@ public class HelloController {
     }
 
     @GetMapping("/api/admin")
-    @PreAuthorize("hasAuthority('SCOPE_ROLE_SYSADMIN') or hasAuthority('ROLE_SYSADMIN')")
+    @PreAuthorize("hasRole('SYSADMIN')")
     public String adminHello() {
         return "Hello admin - secured";
     }

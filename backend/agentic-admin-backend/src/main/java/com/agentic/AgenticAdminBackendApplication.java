@@ -1,4 +1,4 @@
-package com.agentic.agentic_admin_backend;
+package com.agentic;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
