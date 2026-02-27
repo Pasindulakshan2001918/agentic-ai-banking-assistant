@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,6 +14,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> _register() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final fullName = _fullNameController.text.trim();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'full_name': fullName},
+      );
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/verify'); // Or login/home depending on confirmation
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An unexpected error occurred')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -403,17 +444,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   elevation: 0,
                 ),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/verify');
-                },
-                child: const Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                  onPressed: _isLoading ? null : _register,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
               ),
             ),
           ],

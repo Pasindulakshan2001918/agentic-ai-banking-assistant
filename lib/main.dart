@@ -8,7 +8,14 @@ import 'screens/verified_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/forgot_password_screen.dart';
 
-void main() {
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://zjwdkyfvgfzxostfnxwn.supabase.co',
+    anonKey: 'sb_publishable_Uouo7np631tW1owa7I1n1A_do-dI9He',
+  );
   runApp(const MyApp());
 }
 
