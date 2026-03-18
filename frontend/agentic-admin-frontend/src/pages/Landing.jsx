@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
+import keycloak from "../keycloak";
 
 export default function Landing() {
   const [dark, setDark] = useState(true);
@@ -13,6 +13,12 @@ export default function Landing() {
       document.documentElement.classList.remove("dark");
     }
   }, [dark]);
+
+  const handleLogin = async () => {
+    await keycloak.login({
+      redirectUri: window.location.origin,
+    });
+  };
 
   return (
     <div
@@ -63,12 +69,12 @@ export default function Landing() {
               {dark ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            <Link
-              to="/login"
+            <button
+              onClick={handleLogin}
               className="px-6 py-2 rounded-xl bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition font-semibold"
             >
               Login
-            </Link>
+            </button>
           </div>
         </div>
       </header>
@@ -117,12 +123,12 @@ export default function Landing() {
           </p>
 
           <div className="flex gap-6">
-            <Link
-              to="/login"
+            <button
+              onClick={handleLogin}
               className="px-8 py-3 rounded-2xl bg-indigo-600 text-white shadow-xl hover:bg-indigo-700 transition font-bold"
             >
               Secure Login
-            </Link>
+            </button>
 
             <button
               className={`px-8 py-3 rounded-2xl border font-bold transition ${
