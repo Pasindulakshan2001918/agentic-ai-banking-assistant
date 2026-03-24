@@ -79,12 +79,13 @@ public class BankingController {
             @Valid @RequestBody CreateTransactionRequest request,
             Authentication auth) {
         try {
+            Long userId = getLoggedInUserId(auth);
             Transaction transaction = transactionService.createTransaction(
                 request.getFromAccountId(),
                 request.getToAccountId(),
                 request.getAmount(),
                 request.getDescription(),
-                auth.getName()
+                userId
             );
             
             Map<String, Object> response = new HashMap<>();
@@ -183,7 +184,8 @@ public class BankingController {
             @Valid @RequestBody ApproveTransactionRequest request,
             Authentication auth) {
         try {
-            Transaction approved = transactionService.approveTransaction(transactionId, auth.getName());
+            Long approverId = getLoggedInUserId(auth);
+            Transaction approved = transactionService.approveTransaction(transactionId, approverId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Transaction approved successfully");
@@ -210,8 +212,9 @@ public class BankingController {
             @Valid @RequestBody RejectTransactionRequest request,
             Authentication auth) {
         try {
+            Long rejecterId = getLoggedInUserId(auth);
             Transaction rejected = transactionService.rejectTransaction(
-                transactionId, auth.getName(), request.getReason());
+                transactionId, rejecterId, request.getReason());
             
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Transaction rejected successfully");
@@ -315,5 +318,16 @@ public class BankingController {
         ));
         
         return ResponseEntity.ok(response);
+    }
+    
+    // ==========================================
+    // HELPER METHODS
+    // ==========================================
+    
+    private Long getLoggedInUserId(Authentication auth) {
+        // For now, return 1L as placeholder
+        // Later: Extract from JWT token using Keycloak integration
+        // Example: (Long) auth.getPrincipal().getId()
+        return 1L;
     }
 }

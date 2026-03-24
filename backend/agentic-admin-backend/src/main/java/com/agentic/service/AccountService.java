@@ -78,12 +78,18 @@ public class AccountService {
     }
     
     /**
-     * Get account balance
+     * Get account balance (with ownership validation)
      */
-    public BigDecimal getBalance(Long accountId) {
-        return accountRepository.findById(accountId)
-            .map(Account::getBalance)
+    public BigDecimal getBalance(Long accountId, Long userId) {
+        Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new RuntimeException("Account not found"));
+        
+        // 🔒 Authorization check
+        if (!account.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Unauthorized: Account does not belong to user");
+        }
+        
+        return account.getBalance();
     }
     
     /**

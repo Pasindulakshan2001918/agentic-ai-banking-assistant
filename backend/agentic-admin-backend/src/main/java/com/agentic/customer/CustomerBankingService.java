@@ -1,5 +1,7 @@
 package com.agentic.customer;
 
+import com.agentic.dto.AccountResponse;
+import com.agentic.dto.BalanceResponse;
 import com.agentic.entity.Account;
 import com.agentic.repository.AccountRepository;
 import org.springframework.stereotype.Service;
@@ -19,10 +21,10 @@ public class CustomerBankingService {
      * Get account balance with ownership validation
      * @param accountId - Account to check
      * @param userId - Logged-in user ID (from token)
-     * @return Balance if user owns the account
+     * @return Balance response DTO if user owns the account
      * @throws RuntimeException if unauthorized
      */
-    public BigDecimal getBalance(Long accountId, Long userId) {
+    public BalanceResponse getBalance(Long accountId, Long userId) {
         Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new RuntimeException("Account not found"));
         
@@ -31,13 +33,20 @@ public class CustomerBankingService {
             throw new RuntimeException("Unauthorized: You do not own this account");
         }
         
-        return account.getBalance();
+        return new BalanceResponse(
+            account.getId(),
+            account.getAccountNumber(),
+            account.getBalance(),
+            account.getCurrency(),
+            account.getStatus().toString()
+        );
     }
     
     /**
      * Get account details with ownership validation
+     * @returns AccountResponse DTO (safe API response)
      */
-    public Account getAccountDetails(Long accountId, Long userId) {
+    public AccountResponse getAccountDetails(Long accountId, Long userId) {
         Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new RuntimeException("Account not found"));
         
@@ -46,7 +55,7 @@ public class CustomerBankingService {
             throw new RuntimeException("Unauthorized: You do not own this account");
         }
         
-        return account;
+        return new AccountResponse(account);
     }
     
     /**

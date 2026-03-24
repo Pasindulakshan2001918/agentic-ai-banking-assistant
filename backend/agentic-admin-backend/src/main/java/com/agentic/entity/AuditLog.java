@@ -45,6 +45,9 @@ public class AuditLog {
     @Column(length = 500)
     private String userAgent;
     
+    @Column(length = 50)
+    private String correlationId;  // 🔗 Correlation ID for tracing requests
+    
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -137,5 +140,13 @@ public class AuditLog {
     
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+    
+    public String getCorrelationId() {
+        return correlationId;
+    }
+    
+    public void setCorrelationId(String correlationId) {
+        this.correlationId = correlationId;
     }
 }

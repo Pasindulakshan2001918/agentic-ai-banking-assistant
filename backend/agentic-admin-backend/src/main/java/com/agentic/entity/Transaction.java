@@ -46,6 +46,9 @@ public class Transaction {
     @Column(length = 50)
     private String referenceNumber;
     
+    @Column(name = "idempotency_key", length = 100, unique = true)
+    private String idempotencyKey;
+    
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -70,6 +73,17 @@ public class Transaction {
     
     @Column(name = "is_auto_approved")
     private Boolean isAutoApproved = false;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category")
+    private SpendingCategory category;
+    
+    @Column(length = 255)
+    private String merchantName;
+    
+    @Version
+    @Column(name = "version")
+    private Long version = 0L;
     
     // ===== GETTERS AND SETTERS =====
     
@@ -137,6 +151,14 @@ public class Transaction {
         this.referenceNumber = referenceNumber;
     }
     
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+    
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+    
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -201,6 +223,30 @@ public class Transaction {
         isAutoApproved = autoApproved;
     }
     
+    public SpendingCategory getCategory() {
+        return category;
+    }
+    
+    public void setCategory(SpendingCategory category) {
+        this.category = category;
+    }
+    
+    public String getMerchantName() {
+        return merchantName;
+    }
+    
+    public void setMerchantName(String merchantName) {
+        this.merchantName = merchantName;
+    }
+    
+    public Long getVersion() {
+        return version;
+    }
+    
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+    
     // ===== ENUMS =====
     
     public enum TransactionType {
@@ -210,7 +256,8 @@ public class Transaction {
         LOAN_PAYMENT,
         INTEREST_CREDIT,
         FEES,
-        ADJUSTMENT
+        ADJUSTMENT,
+        BILL_PAYMENT
     }
     
     public enum TransactionStatus {

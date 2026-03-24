@@ -6,12 +6,24 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true) // Critical: Enables @PreAuthorize
 public class SecurityConfig {
+
+    /**
+     * 🔒 PASSWORD ENCODER BEAN
+     * Injected into services (DON'T instantiate manually)
+     * BCrypt is NIST approved + resistant to GPU/ASIC attacks
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -30,6 +42,8 @@ public class SecurityConfig {
                 // Public endpoints (no authentication required)
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // User self-registration (public endpoint)
+                .requestMatchers("POST", "/api/users").permitAll()
                 
                 // Auth profile endpoint (any authenticated user)
                 .requestMatchers("/auth/profile").authenticated()

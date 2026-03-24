@@ -1,0 +1,51 @@
+server:
+  port: 8081
+
+spring:
+  # H2 in-memory database for integration tests
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+
+  # H2 Console for debugging
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Create and drop tables for each test
+    show-sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        # Use SERIALIZABLE isolation for test consistency
+        dialect: org.hibernate.dialect.H2Dialect
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/agentic-bank
+
+# Transfer Configuration
+transfer:
+  instant:
+    limit: 250000
+  daily:
+    limit: 5000000
+  daily-transaction-count-limit: 100
+
+logging:
+  level:
+    org.springframework.test: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

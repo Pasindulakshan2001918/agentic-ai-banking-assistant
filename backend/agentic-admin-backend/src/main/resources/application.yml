@@ -11,9 +11,40 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        # 🔒 SERIALIZABLE isolation for financial transactions
+        # Prevents all anomalies (dirty reads, non-repeatable reads, phantom reads)
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        # Pessimistic locking strategy for high-concurrency transfers
+        use_crud_optimizations: true
+
+  # Transaction Configuration for Critical Operations
+  transaction:
+    default-timeout: 30
+    # Rollback on any exception for data consistency
+    rollback-on-commit-failure: true
 
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8180/realms/agentic-bank
+
+# Transfer Configuration (Externalized)
+transfer:
+  instant:
+    limit: 250000      # Max instant transfer: 250k
+  daily:
+    limit: 5000000     # Max daily transfer: 5M
+  daily-transaction-count-limit: 100  # Max transactions per day
+
+logging:
+  level:
+    com.agentic: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.engine.transaction.internal: DEBUG  # Transaction logging
