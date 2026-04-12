@@ -9,6 +9,7 @@ public class AiCardActionRequest {
     private Long cardId;
     private String action;  // "BLOCK", "UNBLOCK"
     private String reason;  // "LOST", "STOLEN", "FRAUD", etc.
+    private String otpCode;
 
     public AiCardActionRequest() {}
 
@@ -49,5 +50,13 @@ public class AiCardActionRequest {
 
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    public String getOtpCode() {
+        return otpCode;
+    }
+
+    public void setOtpCode(String otpCode) {
+        this.otpCode = otpCode;
     }
 }

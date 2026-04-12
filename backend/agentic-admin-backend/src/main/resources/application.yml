@@ -1,3 +1,7 @@
+jwt:
+  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckpXVEF1dGhlbnRpY2F0aW9uMjAyNg==}
+  expiration-ms: 86400000
+
 server:
   port: 8081
 
@@ -9,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -23,6 +27,12 @@ spring:
         # Pessimistic locking strategy for high-concurrency transfers
         use_crud_optimizations: true
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
   # Transaction Configuration for Critical Operations
   transaction:
     default-timeout: 30
@@ -34,6 +44,14 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8180/realms/agentic-bank
+
+sms:
+  provider: twilio
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:your-account-sid-here}
+    auth-token: ${TWILIO_AUTH_TOKEN:your-auth-token-here}
+    from-number: ${TWILIO_FROM_NUMBER:+1234567890}
+  enabled: ${SMS_ENABLED:false}
 
 # Transfer Configuration (Externalized)
 transfer:

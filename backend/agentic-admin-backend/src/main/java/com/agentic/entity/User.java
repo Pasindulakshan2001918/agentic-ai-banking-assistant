@@ -54,6 +54,12 @@ public class User {
     @Column(name = "updated_by")
     private String updatedBy;
     
+    @Column(name = "keycloak_id", unique = true)
+    private String keycloakId;
+
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
     // ===== GETTERS AND SETTERS =====
     
     public Long getId() {
@@ -139,11 +145,27 @@ public class User {
     public String getUpdatedBy() {
         return updatedBy;
     }
-    
+
     public void setUpdatedBy(String updatedBy) {
         this.updatedBy = updatedBy;
     }
-    
+
+    public String getKeycloakId() {
+        return keycloakId;
+    }
+
+    public void setKeycloakId(String keycloakId) {
+        this.keycloakId = keycloakId;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
     // ===== ENUMS =====
     
     public enum UserRole {

@@ -24,6 +24,7 @@ public class OtpService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final RateLimitingService rateLimitingService;
+    private final SmsService smsService;
     
     private static final int OTP_LENGTH = 6;
     private static final int EXPIRY_MINUTES = 5;
@@ -32,11 +33,13 @@ public class OtpService {
     public OtpService(OneTimePasswordRepository otpRepository,
                      UserRepository userRepository,
                      AuditService auditService,
-                     RateLimitingService rateLimitingService) {
+                     RateLimitingService rateLimitingService,
+                     SmsService smsService) {
         this.otpRepository = otpRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.rateLimitingService = rateLimitingService;
+        this.smsService = smsService;
     }
     
     /**
@@ -90,6 +93,17 @@ public class OtpService {
         otp.setAttemptCount(0);
         
         OneTimePassword saved = otpRepository.save(otp);
+        
+        // Send OTP via SMS if user has a phone number
+        try {
+            if (user.getPhoneNumber() != null && !user.getPhoneNumber().isBlank()) {
+                smsService.sendOtp(user.getPhoneNumber(), otpCode);
+            } else {
+                log.info("[NO PHONE] OTP generated for user {}: {}", userId, otpCode);
+            }
+        } catch (Exception e) {
+            log.error("SMS send failed for user {} but OTP was saved: {}", userId, e.getMessage());
+        }
         
         // Log audit with correlation ID
         String correlationId = CorrelationIdHolder.getCorrelationId();

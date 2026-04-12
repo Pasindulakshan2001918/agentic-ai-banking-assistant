@@ -14,6 +14,8 @@ public class AiPaymentRequest {
     private String billType;  // "ELECTRICITY", "WATER", "INTERNET", etc.
     private String provider;
     private String referenceNumber;
+    private Boolean confirmed;
+    private String otpCode;
 
     public AiPaymentRequest() {}
 
@@ -79,5 +81,21 @@ public class AiPaymentRequest {
 
     public void setReferenceNumber(String referenceNumber) {
         this.referenceNumber = referenceNumber;
+    }
+
+    public Boolean getConfirmed() {
+        return confirmed;
+    }
+
+    public void setConfirmed(Boolean confirmed) {
+        this.confirmed = confirmed;
+    }
+
+    public String getOtpCode() {
+        return otpCode;
+    }
+
+    public void setOtpCode(String otpCode) {
+        this.otpCode = otpCode;
     }
 }

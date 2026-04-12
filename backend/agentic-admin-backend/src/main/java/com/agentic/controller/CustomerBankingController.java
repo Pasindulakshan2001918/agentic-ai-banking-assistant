@@ -1,17 +1,17 @@
 package com.agentic.controller;
 
-import com.agentic.customer.CustomerBankingService;
 import com.agentic.dto.*;
 import com.agentic.entity.BillType;
 import com.agentic.entity.Transaction;
 import com.agentic.exception.UnauthorizedException;
+import com.agentic.exception.EntityNotFoundException;
 import com.agentic.repository.AccountRepository;
 import com.agentic.repository.TransactionRepository;
+import com.agentic.repository.UserRepository;
 import com.agentic.security.SecurityUtils;
 import com.agentic.service.BillService;
 import com.agentic.service.SpendingInsightService;
 import com.agentic.service.TransactionService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,28 +33,28 @@ import java.util.Map;
 @RequestMapping("/api/customer")
 public class CustomerBankingController {
     
-    private final CustomerBankingService customerService;
     private final TransactionService transactionService;
     private final SpendingInsightService spendingInsightService;
     private final AccountRepository accountRepository;
     private final BillService billService;
     private final TransactionRepository transactionRepository;
     private final SecurityUtils securityUtils;
+    private final UserRepository userRepository;
     
-    public CustomerBankingController(CustomerBankingService customerService,
-                                     TransactionService transactionService,
+    public CustomerBankingController(TransactionService transactionService,
                                      SpendingInsightService spendingInsightService,
                                      AccountRepository accountRepository,
                                      BillService billService,
                                      TransactionRepository transactionRepository,
-                                     SecurityUtils securityUtils) {
-        this.customerService = customerService;
+                                     SecurityUtils securityUtils,
+                                     UserRepository userRepository) {
         this.transactionService = transactionService;
         this.spendingInsightService = spendingInsightService;
         this.accountRepository = accountRepository;
         this.billService = billService;
         this.transactionRepository = transactionRepository;
         this.securityUtils = securityUtils;
+        this.userRepository = userRepository;
     }
     
     /**
@@ -65,18 +65,28 @@ public class CustomerBankingController {
     public ResponseEntity<Map<String, Object>> getBalance(
             @PathVariable Long accountId,
             Authentication auth) {
-        Long userId = getLoggedInUserId(auth);
-        var balanceResponse = customerService.getBalance(accountId, userId);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("accountId", balanceResponse.getAccountId());
-        response.put("accountNumber", balanceResponse.getAccountNumber());
-        response.put("balance", balanceResponse.getBalance());
-        response.put("currency", balanceResponse.getCurrency());
-        response.put("status", balanceResponse.getStatus());
-        response.put("timestamp", LocalDateTime.now(ZoneOffset.UTC));
-        
-        return ResponseEntity.ok(response);
+        try {
+            Long userId = getLoggedInUserId(auth);
+            var account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+            
+            // Check ownership
+            if (!account.getUser().getId().equals(userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("accountId", account.getId());
+            response.put("accountNumber", account.getAccountNumber());
+            response.put("balance", account.getBalance());
+            response.put("currency", "LKR");
+            response.put("status", account.getStatus());
+            response.put("timestamp", LocalDateTime.now(ZoneOffset.UTC));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     /**
@@ -87,19 +97,29 @@ public class CustomerBankingController {
     public ResponseEntity<?> getAccountDetails(
             @PathVariable Long accountId,
             Authentication auth) {
-        Long userId = getLoggedInUserId(auth);
-        var accountResponse = customerService.getAccountDetails(accountId, userId);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", accountResponse.getId());
-        response.put("accountNumber", accountResponse.getAccountNumber());
-        response.put("accountType", accountResponse.getAccountType());
-        response.put("balance", accountResponse.getBalance());
-        response.put("status", accountResponse.getStatus());
-        response.put("currency", accountResponse.getCurrency());
-        response.put("timestamp", LocalDateTime.now(ZoneOffset.UTC));
-        
-        return ResponseEntity.ok(response);
+        try {
+            Long userId = getLoggedInUserId(auth);
+            var account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+            
+            // Check ownership
+            if (!account.getUser().getId().equals(userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", account.getId());
+            response.put("accountNumber", account.getAccountNumber());
+            response.put("accountType", account.getAccountType());
+            response.put("balance", account.getBalance());
+            response.put("status", account.getStatus());
+            response.put("currency", "LKR");
+            response.put("timestamp", LocalDateTime.now(ZoneOffset.UTC));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     /**
@@ -114,7 +134,9 @@ public class CustomerBankingController {
         Long userId = getLoggedInUserId(auth);
         
         // 🔒 Validate user owns the FROM account
-        if (!customerService.ownsAccount(request.getFromAccountId(), userId)) {
+        var fromAccount = accountRepository.findById(request.getFromAccountId())
+            .orElseThrow(() -> new RuntimeException("Source account not found"));
+        if (!fromAccount.getUser().getId().equals(userId)) {
             throw new UnauthorizedException("You do not own the source account");
         }
         
@@ -174,7 +196,7 @@ public class CustomerBankingController {
         
         Long userId = getLoggedInUserId(auth);
         Long accountId = accountRepository.findPrimaryByUserId(userId)
-            .orElseThrow(() -> new EntityNotFoundException("Account not found"))
+            .orElseThrow(() -> new EntityNotFoundException("Account not found", "Account", 0L))
             .getId();
 
         // Default to current month if not specified
@@ -239,7 +261,9 @@ public class CustomerBankingController {
             @RequestParam(defaultValue = "10") int size,
             Authentication auth) {
         Long userId = getLoggedInUserId(auth);
-        if (!customerService.ownsAccount(accountId, userId)) {
+        var account = accountRepository.findById(accountId)
+            .orElseThrow(() -> new RuntimeException("Account not found"));
+        if (!account.getUser().getId().equals(userId)) {
             throw new UnauthorizedException("You do not own this account");
         }
         Page<Transaction> transactions = transactionRepository
@@ -263,7 +287,7 @@ public class CustomerBankingController {
         Long numericUserId = getLoggedInUserId(auth);
         // Get primary account
         var account = accountRepository.findPrimaryByUserId(numericUserId)
-            .orElseThrow(() -> new EntityNotFoundException("No primary account found for user"));
+            .orElseThrow(() -> new EntityNotFoundException("No primary account found for user", "Account", 0L));
         
         // Get recent transactions using pagination
         var page = transactionRepository.findByAccountId(
@@ -292,7 +316,7 @@ public class CustomerBankingController {
         Long numericUserId = getLoggedInUserId(auth);
         List<com.agentic.entity.Account> accounts = accountRepository.findByUserId(numericUserId);
         if (accounts.isEmpty()) {
-            throw new EntityNotFoundException("No accounts found for user");
+            throw new EntityNotFoundException("No accounts found for user", "Account", 0L);
         }
         return ResponseEntity.ok(AccountSummary.fromEntities(accounts));
     }
@@ -305,31 +329,34 @@ public class CustomerBankingController {
      * @throws UnauthorizedException if authentication is missing or token has no user ID
      */
     private Long getLoggedInUserId(Authentication auth) {
-        if (auth == null || !auth.isAuthenticated()) {
-            throw new UnauthorizedException("User not authenticated");
+        if (auth == null) {
+            throw new com.agentic.exception.UnauthorizedException(
+                "No authentication provided");
         }
 
-        try {
-            // Get JWT from Authentication principal
-            Jwt jwt = (Jwt) auth.getPrincipal();
-            
-            // Extract "sub" claim (Keycloak user ID)
-            String userIdStr = jwt.getClaimAsString("sub");
-            if (userIdStr == null || userIdStr.isBlank()) {
-                throw new UnauthorizedException("Missing 'sub' claim in JWT token");
-            }
+        // CUSTOMER route — principal is a User entity (set by CustomerJwtFilter)
+        if (auth.getPrincipal() instanceof com.agentic.entity.User user) {
+            return user.getId();
+        }
 
-            // For banking domain, convert UUID to numeric ID
-            // In production: Store UUID or use UUID directly in database
+        // ADMIN route — principal is a Keycloak JWT
+        if (auth.getPrincipal() instanceof
+                org.springframework.security.oauth2.jwt.Jwt jwt) {
+            String subject = jwt.getSubject();
             try {
-                // Try using sub directly as string, then hash if needed for lookup
-                return Long.parseLong(userIdStr.replaceAll("[^0-9]", "").substring(0, 10));
-            } catch (Exception e) {
-                // Fallback: Use hash of user ID for numeric ID (production systems would store UUID)
-                return Math.abs((long) userIdStr.hashCode());
+                return Long.parseLong(subject);
+            } catch (NumberFormatException e) {
+                return userRepository.findByKeycloakId(subject)
+                        .map(com.agentic.entity.User::getId)
+                        .orElseThrow(() ->
+                            new com.agentic.exception.EntityNotFoundException(
+                                "Admin user not found for Keycloak subject: "
+                                + subject, "User", 0L));
             }
-        } catch (ClassCastException e) {
-            throw new UnauthorizedException("Invalid token format: expected JWT");
         }
+
+        throw new com.agentic.exception.UnauthorizedException(
+            "Unrecognised authentication type: "
+            + auth.getPrincipal().getClass().getSimpleName());
     }
 }

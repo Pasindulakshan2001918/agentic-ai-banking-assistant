@@ -15,6 +15,8 @@ public class AiTransferRequest {
     private String recipient;
     private String purpose;
     private Long userId;
+    private Boolean confirmed;
+    private String otpCode;
 
     public AiTransferRequest() {}
 
@@ -81,5 +83,21 @@ public class AiTransferRequest {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Boolean getConfirmed() {
+        return confirmed;
+    }
+
+    public void setConfirmed(Boolean confirmed) {
+        this.confirmed = confirmed;
+    }
+
+    public String getOtpCode() {
+        return otpCode;
+    }
+
+    public void setOtpCode(String otpCode) {
+        this.otpCode = otpCode;
     }
 }

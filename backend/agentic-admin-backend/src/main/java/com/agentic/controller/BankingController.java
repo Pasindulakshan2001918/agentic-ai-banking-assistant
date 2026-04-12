@@ -9,6 +9,9 @@ import com.agentic.service.TransactionService;
 import com.agentic.service.AccountService;
 import com.agentic.service.UserService;
 import com.agentic.service.AuditService;
+import com.agentic.exception.UnauthorizedException;
+import com.agentic.exception.EntityNotFoundException;
+import com.agentic.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,15 +35,18 @@ public class BankingController {
     private final AccountService accountService;
     private final UserService userService;
     private final AuditService auditService;
+    private final UserRepository userRepository;
     
     public BankingController(TransactionService transactionService,
                             AccountService accountService,
                             UserService userService,
-                            AuditService auditService) {
+                            AuditService auditService,
+                            UserRepository userRepository) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.userService = userService;
         this.auditService = auditService;
+        this.userRepository = userRepository;
     }
 
     // ==========================================
@@ -325,9 +331,34 @@ public class BankingController {
     // ==========================================
     
     private Long getLoggedInUserId(Authentication auth) {
-        // For now, return 1L as placeholder
-        // Later: Extract from JWT token using Keycloak integration
-        // Example: (Long) auth.getPrincipal().getId()
-        return 1L;
+        if (auth == null) {
+            throw new com.agentic.exception.UnauthorizedException(
+                "No authentication provided");
+        }
+
+        // CUSTOMER route — principal is a User entity (set by CustomerJwtFilter)
+        if (auth.getPrincipal() instanceof com.agentic.entity.User user) {
+            return user.getId();
+        }
+
+        // ADMIN route — principal is a Keycloak JWT
+        if (auth.getPrincipal() instanceof
+                org.springframework.security.oauth2.jwt.Jwt jwt) {
+            String subject = jwt.getSubject();
+            try {
+                return Long.parseLong(subject);
+            } catch (NumberFormatException e) {
+                return userRepository.findByKeycloakId(subject)
+                        .map(com.agentic.entity.User::getId)
+                        .orElseThrow(() ->
+                            new com.agentic.exception.EntityNotFoundException(
+                                "Admin user not found for Keycloak subject: "
+                                + subject, "User", 0L));
+            }
+        }
+
+        throw new com.agentic.exception.UnauthorizedException(
+            "Unrecognised authentication type: "
+            + auth.getPrincipal().getClass().getSimpleName());
     }
 }

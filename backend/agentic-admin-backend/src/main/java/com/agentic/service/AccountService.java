@@ -122,7 +122,15 @@ public class AccountService {
     public Account deactivateAccount(Long accountId, String deactivatedBy) {
         return updateAccountStatus(accountId, Account.AccountStatus.INACTIVE, deactivatedBy);
     }
-    
+
+    /**
+     * Get the primary (first/main) account for a user
+     */
+    public Optional<Account> getPrimaryAccount(Long userId) {
+        List<Account> accounts = getUserAccounts(userId);
+        return accounts.stream().findFirst();
+    }
+
     // ====== PRIVATE HELPER METHODS ======
     
     private String generateAccountNumber() {
