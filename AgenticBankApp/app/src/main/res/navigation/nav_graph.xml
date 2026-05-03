@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/dashboardFragment">
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.agenticbank.ui.dashboard.DashboardFragment"
+        android:label="Home"
+        tools:layout="@layout/fragment_dashboard">
+
+        <action android:id="@+id/action_dashboard_to_transactions"
+            app:destination="@id/transactionsFragment" />
+        <action android:id="@+id/action_dashboard_to_transfer"
+            app:destination="@id/transferFragment" />
+        <action android:id="@+id/action_dashboard_to_beneficiaries"
+            app:destination="@id/beneficiariesFragment" />
+        <action android:id="@+id/action_dashboard_to_bills"
+            app:destination="@id/billsFragment" />
+        <action android:id="@+id/action_dashboard_to_cards"
+            app:destination="@id/cardsFragment" />
+        <action android:id="@+id/action_dashboard_to_scheduled"
+            app:destination="@id/scheduledTransfersFragment" />
+        <action android:id="@+id/action_dashboard_to_insights"
+            app:destination="@id/insightsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/transactionsFragment"
+        android:name="com.agenticbank.ui.transactions.TransactionsFragment"
+        android:label="Transaction History"
+        tools:layout="@layout/fragment_transactions" />
+
+    <fragment
+        android:id="@+id/transferFragment"
+        android:name="com.agenticbank.ui.transfer.TransferFragment"
+        android:label="Transfer Money"
+        tools:layout="@layout/fragment_transfer" />
+
+    <fragment
+        android:id="@+id/beneficiariesFragment"
+        android:name="com.agenticbank.ui.beneficiaries.BeneficiariesFragment"
+        android:label="Beneficiaries"
+        tools:layout="@layout/fragment_beneficiaries" />
+
+    <fragment
+        android:id="@+id/billsFragment"
+        android:name="com.agenticbank.ui.bills.BillsFragment"
+        android:label="Pay Bills"
+        tools:layout="@layout/fragment_bills" />
+
+    <fragment
+        android:id="@+id/cardsFragment"
+        android:name="com.agenticbank.ui.cards.CardsFragment"
+        android:label="My Cards"
+        tools:layout="@layout/fragment_cards" />
+
+    <fragment
+        android:id="@+id/scheduledTransfersFragment"
+        android:name="com.agenticbank.ui.scheduled.ScheduledTransfersFragment"
+        android:label="Scheduled Transfers"
+        tools:layout="@layout/fragment_scheduled_transfers" />
+
+    <fragment
+        android:id="@+id/insightsFragment"
+        android:name="com.agenticbank.ui.insights.InsightsFragment"
+        android:label="Spending Insights"
+        tools:layout="@layout/fragment_insights" />
+
+    <fragment
+        android:id="@+id/aiChatFragment"
+        android:name="com.agenticbank.ui.chat.AIChatFragment"
+        android:label="AI Assistant"
+        tools:layout="@layout/fragment_chat" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.agenticbank.ui.profile.ProfileFragment"
+        android:label="My Profile"
+        tools:layout="@layout/fragment_profile" />
+
+</navigation>

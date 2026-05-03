@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="margin_small">8dp</dimen>
+    <dimen name="margin_medium">16dp</dimen>
+    <dimen name="margin_large">24dp</dimen>
+    <dimen name="card_radius">16dp</dimen>
+    <dimen name="button_height">52dp</dimen>
+    <dimen name="icon_size">48dp</dimen>
+    <dimen name="quick_action_size">72dp</dimen>
+</resources>
