@@ -116,15 +116,15 @@ public class ObservabilityFilter implements Filter {
         }
         
         if (contentType != null && contentType.contains("application/json")) {
-            try {
-                String body = new String(request.getInputStream().readAllBytes());
-                if (body.length() > 0 && !body.contains("password")) {  // Don't log passwords
-                    log.debug("  Body (truncated): {}", body.substring(0, Math.min(500, body.length())));
-                }
-            } catch (Exception e) {
-                // Silent fail - logging shouldn't crash the app
-            }
-        }
+    try {
+        // Use ContentCachingRequestWrapper — does NOT consume the stream
+        // The wrapper buffers the body after chain.doFilter reads it
+        // For pre-read logging, we skip body logging here to avoid consuming the stream
+        log.debug("  Content-Type: {} (body logged after processing)", contentType);
+    } catch (Exception e) {
+        // Silent fail
+    }
+}
     }
     
     /**

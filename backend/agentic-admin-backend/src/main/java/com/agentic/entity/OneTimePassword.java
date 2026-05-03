@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "otp_store", indexes = {
-    @Index(name = "idx_user_id", columnList = "user_id"),
+    @Index(name = "idx_otp_user_id", columnList = "user_id"),
     @Index(name = "idx_otp_code", columnList = "otp_code")
 })
 public class OneTimePassword {

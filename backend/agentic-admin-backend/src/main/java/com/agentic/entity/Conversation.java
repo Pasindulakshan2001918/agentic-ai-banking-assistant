@@ -33,7 +33,7 @@ import java.time.temporal.ChronoUnit;
 
 @Table(name = "conversations", indexes = {
 
-@Index(name = "idx_user_id", columnList = "user_id"),
+@Index(name = "idx_conversation_user_id", columnList = "user_id"),
 
 @Index(name = "idx_status", columnList = "status"),
 

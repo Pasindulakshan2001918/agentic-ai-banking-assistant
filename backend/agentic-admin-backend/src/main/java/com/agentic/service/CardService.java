@@ -245,9 +245,21 @@ public class CardService {
      */
     private Card getCardForUser(Long userId, Long cardId) {
         Account account = getAccountForUser(userId);
-        return cardRepository.findByIdAndAccountId(cardId, account.getId())
+        
+        if (cardId != null) {
+            return cardRepository.findByIdAndAccountId(cardId, account.getId())
+                .orElseThrow(() -> new UnauthorizedException(
+                    "Card not found or does not belong to your account."
+                ));
+        }
+        
+        // No cardId provided — use the first active card on the account
+        return cardRepository.findByAccountId(account.getId())
+            .stream()
+            .filter(c -> c.getStatus() == Card.CardStatus.ACTIVE)
+            .findFirst()
             .orElseThrow(() -> new UnauthorizedException(
-                "Card not found or does not belong to your account."
+                "No active card found on your account."
             ));
     }
 

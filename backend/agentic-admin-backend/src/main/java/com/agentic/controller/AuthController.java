@@ -97,9 +97,14 @@ public class AuthController {
         User saved = userRepository.save(user);
 
         // Log registration in audit trail
-        auditService.logAction("User", saved.getId(), "REGISTER", "SELF",
-                null, "Customer registered: " + saved.getUsername(),
-                "Customer self-registration");
+        try {
+            auditService.logAction("User", saved.getId(), "REGISTER", "SELF",
+                    null, "Customer registered: " + saved.getUsername(),
+                    "Customer self-registration");
+        } catch (Exception auditEx) {
+            // Audit failure should not block registration
+            System.err.println("Audit log failed: " + auditEx.getMessage());
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Account created successfully. You can now log in.");
@@ -142,8 +147,12 @@ public class AuthController {
         String token = jwtTokenProvider.generateToken(user);
 
         // Log successful login
-        auditService.logAction("User", user.getId(), "LOGIN", user.getUsername(),
-                null, "Customer login successful", "Customer authentication");
+        try {
+            auditService.logAction("User", user.getId(), "LOGIN", user.getUsername(),
+                    null, "Customer login successful", "Customer authentication");
+        } catch (Exception auditEx) {
+            System.err.println("Audit log failed: " + auditEx.getMessage());
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
