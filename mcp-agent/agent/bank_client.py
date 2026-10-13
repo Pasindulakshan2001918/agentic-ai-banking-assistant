@@ -62,6 +62,24 @@ class BankClient:
             r.raise_for_status()
             return r.json()["registeredBillers"]
 
+    async def get_cards(self) -> list[dict]:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+            r = await c.get(f"{BANK_API_URL}/api/v1/cards", headers=self._headers())
+            r.raise_for_status()
+            return r.json()["cards"]
+
+    async def get_loans(self) -> list[dict]:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+            r = await c.get(f"{BANK_API_URL}/api/v1/loans", headers=self._headers())
+            r.raise_for_status()
+            return r.json()["loans"]
+
+    async def block_card(self, card_id: str) -> dict:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+            r = await c.post(f"{BANK_API_URL}/api/v1/cards/{card_id}/block", headers=self._headers())
+            r.raise_for_status()
+            return r.json()
+
     # ------------------------------------------------------------------ actions
     async def prepare(self, action_type: str, params: dict) -> dict:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
@@ -112,6 +130,15 @@ class BankClient:
     async def dev_login(cls, cif: str, session_id: str, lang: str = "en") -> "BankClient":
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
             r = await c.post(f"{BANK_API_URL}/api/v1/auth/dev-login", json={"cif": cif})
+            r.raise_for_status()
+            data = r.json()
+        return cls(token=data["accessToken"], session_id=session_id,
+                   lang=data.get("preferredLanguage", "en").lower())
+
+    @classmethod
+    async def dev_signup(cls, cif: str, name: str, mobile: str, session_id: str, lang: str = "en") -> "BankClient":
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+            r = await c.post(f"{BANK_API_URL}/api/v1/auth/dev-signup", json={"cif": cif, "name": name, "mobile": mobile, "lang": lang})
             r.raise_for_status()
             data = r.json()
         return cls(token=data["accessToken"], session_id=session_id,

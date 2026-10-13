@@ -144,6 +144,39 @@ async def get_registered_billers(session: Session) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
+@mcp.tool()
+async def get_cards(session: Session) -> dict:
+    """Return the customer's credit and debit cards, including their IDs and statuses."""
+    try:
+        cards = await _client(session).get_cards()
+        return {"cards": cards, "count": len(cards)}
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def get_loans(session: Session) -> dict:
+    """Return the customer's loans and leases."""
+    try:
+        loans = await _client(session).get_loans()
+        return {"loans": loans, "count": len(loans)}
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def block_card(session: Session, card_id: str) -> dict:
+    """Block a specific credit or debit card immediately (e.g. if lost/stolen). 
+    You MUST call get_cards first to find the card_id.
+    Returns status=COMPLETED on success."""
+    try:
+        result = await _client(session).block_card(card_id)
+        return {
+            "status": "COMPLETED",
+            "tell_user": result.get("message", "Card successfully blocked."),
+            "next_action": "done"
+        }
+    except Exception as e:
+        log.error("block_card: %s", e)
+        return {"status": "ERROR", "tell_user": "Unable to block the card. Please try again.", "error": str(e)}
 
 # ─────────────────────────────── prepare tools ────────────────────────────────
 

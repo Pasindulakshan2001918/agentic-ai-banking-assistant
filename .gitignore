@@ -1,0 +1,50 @@
+# ==========================================
+# Bundled portable software and database data
+# ==========================================
+/pgsql/
+/pg_data/
+/maven/
+*.log
+
+# ==========================================
+# Python virtual environment & cache
+# ==========================================
+.venv/
+mcp-agent/.venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# ==========================================
+# Java / Maven build artifacts
+# ==========================================
+**/target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+
+# ==========================================
+# Environment variables & secrets
+# ==========================================
+.env
+*.env
+!.env.example
+
+# ==========================================
+# IDE & Editor configs
+# ==========================================
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# ==========================================
+# Operating System & temporary files
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini

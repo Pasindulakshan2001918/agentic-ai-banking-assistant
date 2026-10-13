@@ -133,6 +133,32 @@ _TOOLS = [
             }, "required": ["txn_ref"]},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_cards",
+            "description": "Get customer's credit and debit cards.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_loans",
+            "description": "Get customer's loans.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "block_card",
+            "description": "Block a specific card.",
+            "parameters": {"type": "object", "properties": {
+                "card_id": {"type": "string"}
+            }, "required": ["card_id"]},
+        },
+    }
 ]
 
 # ── Tool dispatch ────────────────────────────────────────────────────────────
@@ -150,6 +176,9 @@ async def _dispatch(name: str, args: dict, session: Session) -> Any:
         "resend_otp":            tool_module.resend_otp,
         "cancel_action":         tool_module.cancel_action,
         "get_receipt":           tool_module.get_receipt,
+        "get_cards":             tool_module.get_cards,
+        "get_loans":             tool_module.get_loans,
+        "block_card":            tool_module.block_card,
     }
     fn = fn_map.get(name)
     if fn is None:

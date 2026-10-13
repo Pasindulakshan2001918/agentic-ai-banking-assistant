@@ -38,6 +38,12 @@ class LoginRequest(BaseModel):
     cif: str
     lang: str = "en"
 
+class SignupRequest(BaseModel):
+    cif: str
+    name: str
+    mobile: str
+    lang: str = "en"
+
 
 class ChatRequest(BaseModel):
     session_id: str
@@ -65,6 +71,22 @@ async def login(req: LoginRequest):
     except Exception as e:
         log.error("login failed cif=%s: %s", req.cif, e)
         raise HTTPException(status_code=401, detail=str(e))
+
+@app.post("/signup")
+async def signup(req: SignupRequest):
+    """Dev signup — creates an account and returns session_id."""
+    sid = str(uuid.uuid4())
+    try:
+        client = await BankClient.dev_signup(req.cif, req.name, req.mobile, sid, req.lang)
+        me = await client.get_me()
+        s = session_store.get_or_create(sid, client._token, client._lang)
+        s.customer_name = me.get("fullName")
+        s.lang = req.lang.lower()[:2]
+        return {"session_id": sid, "customer_name": s.customer_name,
+                "lang": s.lang, "preferred_language": me.get("preferredLanguage")}
+    except Exception as e:
+        log.error("signup failed cif=%s: %s", req.cif, e)
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/chat", response_model=ChatResponse)

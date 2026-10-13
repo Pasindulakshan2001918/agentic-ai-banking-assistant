@@ -111,15 +111,9 @@
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
-  <div class="login-card">
+  <div class="login-card" id="signin-card">
     <h2>Sign in</h2>
     <p>Enter your Customer ID to start a banking session.</p>
-    <div class="demo-label">Demo accounts</div>
-    <div class="demo-chips">
-      <div class="chip" onclick="fillCif('CIF0001','si')">Nimal · CIF0001 (SI)</div>
-      <div class="chip" onclick="fillCif('CIF0002','ta')">Kavitha · CIF0002 (TA)</div>
-      <div class="chip" onclick="fillCif('CIF0003','en')">Ruwan · CIF0003 (EN)</div>
-    </div>
     <div class="form-group">
       <label>Customer ID (CIF)</label>
       <input type="text" id="cif-input" placeholder="e.g. CIF0001" autocomplete="off">
@@ -133,7 +127,36 @@
       </select>
     </div>
     <button class="btn-primary" id="login-btn" onclick="doLogin()">Start Banking Session</button>
+    <div style="margin-top: 15px; text-align: center; font-size: 13px; color: #a0aec0; cursor: pointer;" onclick="document.getElementById('signin-card').style.display='none'; document.getElementById('signup-card').style.display='block';">Don't have an account? Sign up here</div>
     <div id="login-error"></div>
+  </div>
+
+  <div class="login-card" id="signup-card" style="display: none;">
+    <h2>Create Account</h2>
+    <p>Sign up to generate a new customer profile and savings account.</p>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="reg-name" placeholder="e.g. Kamal Perera" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Mobile Number</label>
+      <input type="text" id="reg-mobile" placeholder="e.g. 0771234567" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Preferred CIF (Username)</label>
+      <input type="text" id="reg-cif" placeholder="e.g. KAMAL001" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Language</label>
+      <select id="reg-lang">
+        <option value="en">English</option>
+        <option value="si">සිංහල (Sinhala)</option>
+        <option value="ta">தமிழ் (Tamil)</option>
+      </select>
+    </div>
+    <button class="btn-primary" id="signup-btn" onclick="doSignup()">Create Account</button>
+    <div style="margin-top: 15px; text-align: center; font-size: 13px; color: #a0aec0; cursor: pointer;" onclick="document.getElementById('signup-card').style.display='none'; document.getElementById('signin-card').style.display='block';">Already have an account? Sign in</div>
+    <div id="signup-error" class="login-error" style="display: none; color: #f56565; margin-top: 12px; font-size: 13px;"></div>
   </div>
 </div>
 
@@ -201,6 +224,40 @@ async function doLogin() {
     showErr(e.message); btn.disabled=false; btn.textContent='Start Banking Session'; setDot('error');
   }
 }
+
+async function doSignup() {
+  const name = document.getElementById('reg-name').value.trim();
+  const mobile = document.getElementById('reg-mobile').value.trim();
+  const cif = document.getElementById('reg-cif').value.trim();
+  const lang  = document.getElementById('reg-lang').value;
+  const errDiv = document.getElementById('signup-error');
+  if (!name || !mobile || !cif) { errDiv.textContent='Please fill all fields.'; errDiv.style.display='block'; return; }
+  
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  setDot('loading');
+  try {
+    const r = await fetch(`${GATEWAY}/signup`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({cif, name, mobile, lang})
+    });
+    if (!r.ok) { const e=await r.json(); throw new Error(e.detail||'Signup failed'); }
+    const d = await r.json();
+    sessionId = d.session_id; customerName = d.customer_name; window.lang = lang;
+    document.getElementById('login-screen').style.display = 'none';
+    const cs = document.getElementById('chat-screen'); cs.style.display = 'flex';
+    document.getElementById('header-sub').textContent = (customerName||'Customer')+' · '+cif;
+    document.getElementById('lang-badge').textContent  = lang.toUpperCase();
+    document.getElementById('info-text').textContent   = 'Session: '+sessionId.slice(0,8)+'… · Gateway: '+GATEWAY;
+    document.getElementById('msg-input').placeholder   = PH[lang]||PH.en;
+    setDot('online'); showQR(); addGreeting();
+    document.getElementById('msg-input').focus();
+  } catch(e) {
+    errDiv.textContent=e.message; errDiv.style.display='block';
+    btn.disabled=false; btn.textContent='Create Account'; setDot('error');
+  }
+}
+
 function showErr(m){ const e=document.getElementById('login-error'); e.textContent=m; e.style.display='block'; }
 document.getElementById('cif-input').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 
@@ -272,7 +329,7 @@ async function sendMsg(text=null){
 function showQR(){
   const chips=QR[lang]||QR.en;
   document.getElementById('quick-replies').innerHTML=chips.map(c=>
-    `<div class="qr-chip" onclick="sendMsg(${JSON.stringify(c)})">${c}</div>`).join('');
+    `<div class="qr-chip" onclick='sendMsg(${JSON.stringify(c)})'>${c}</div>`).join('');
 }
 function updateQR(reply){
   const r=reply.toLowerCase();
@@ -289,7 +346,7 @@ function updateQR(reply){
             ['Yes, get receipt','No thanks'];
   } else { showQR(); return; }
   document.getElementById('quick-replies').innerHTML=chips.map(c=>
-    `<div class="qr-chip" onclick="sendMsg(${JSON.stringify(c)})">${c}</div>`).join('');
+    `<div class="qr-chip" onclick='sendMsg(${JSON.stringify(c)})'>${c}</div>`).join('');
 }
 function clearQR(){ document.getElementById('quick-replies').innerHTML=''; }
 

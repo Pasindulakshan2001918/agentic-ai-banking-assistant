@@ -10,9 +10,12 @@ import com.lunorlabs.bank.repo.PayeeRepo;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,12 +29,14 @@ public class ReadController {
     private final AccountRepo accounts;
     private final PayeeRepo payees;
     private final BillerRepo billers;
+    private final JdbcClient jdbc;
 
-    public ReadController(CustomerRepo customers, AccountRepo accounts, PayeeRepo payees, BillerRepo billers) {
+    public ReadController(CustomerRepo customers, AccountRepo accounts, PayeeRepo payees, BillerRepo billers, JdbcClient jdbc) {
         this.customers = customers;
         this.accounts = accounts;
         this.payees = payees;
         this.billers = billers;
+        this.jdbc = jdbc;
     }
 
     @GetMapping("/me")
@@ -111,5 +116,35 @@ public class ReadController {
             return m;
         }).toList();
         return Map.of("registeredBillers", list);
+    }
+
+    @GetMapping("/cards")
+    public Map<String, Object> cards(HttpServletRequest req) {
+        RequestMeta meta = RequestMeta.from(req);
+        List<Map<String, Object>> list = jdbc.sql("SELECT * FROM cards WHERE customer_id = ? ORDER BY card_type, card_last4")
+                .param(1, meta.customerId())
+                .query().listOfRows();
+        return Map.of("cards", list);
+    }
+
+    @GetMapping("/loans")
+    public Map<String, Object> loans(HttpServletRequest req) {
+        RequestMeta meta = RequestMeta.from(req);
+        List<Map<String, Object>> list = jdbc.sql("SELECT * FROM loans WHERE customer_id = ? ORDER BY loan_no")
+                .param(1, meta.customerId())
+                .query().listOfRows();
+        return Map.of("loans", list);
+    }
+
+    @PostMapping("/cards/{id}/block")
+    public Map<String, Object> blockCard(HttpServletRequest req, @PathVariable java.util.UUID id) {
+        RequestMeta meta = RequestMeta.from(req);
+        int updated = jdbc.sql("UPDATE cards SET status = 'BLOCKED' WHERE id = ? AND customer_id = ? AND status != 'BLOCKED'")
+                .param(1, id).param(2, meta.customerId())
+                .update();
+        if (updated == 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CARD", "Card not found or already blocked.");
+        }
+        return Map.of("status", "COMPLETED", "message", "Card successfully blocked.");
     }
 }

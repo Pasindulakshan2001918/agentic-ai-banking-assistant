@@ -105,5 +105,18 @@ Slot examples (extract if clearly present):
 - account: "savings", "main savings", "ප්‍රධාන ඉතිරිකිරීමේ"
 - mobile: "0771234567"
 
+
 Return ONLY the JSON. No explanation. No markdown fences.
 """
+
+LANG_CONFIRM_PROMPT = {
+    "en": "Shall I go ahead with this?",
+    "si": "මම මෙය ඉදිරියට කරගෙන යන්නද?",
+    "ta": "இதை தொடரலாமா?",
+}
+
+LANG_OTP_PROMPT = {
+    "en": "Please enter the OTP sent to your phone to confirm.",
+    "si": "කරුණාකර තහවුරු කිරීමට ඔබගේ දුරකථනයට එවන ලද OTP ඇතුලත් කරන්න.",
+    "ta": "உறுதிப்படுத்த உங்கள் தொலைபேசிக்கு அனுப்பப்பட்ட OTP ஐ உள்ளிடவும்.",
+}
