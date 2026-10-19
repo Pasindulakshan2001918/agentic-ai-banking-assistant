@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from agent import session as session_store
 from agent.agent_loop import chat
 from agent.bank_client import BankClient
-from agent.config import GATEWAY_HOST, GATEWAY_PORT
+from agent.config import GEMINI_API_KEY, GATEWAY_HOST, GATEWAY_PORT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger(__name__)
@@ -120,7 +120,11 @@ async def get_session(session_id: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "ai_configured": bool(GEMINI_API_KEY),
+        "mode": "ai" if GEMINI_API_KEY else "offline-read-only",
+    }
 
 
 if __name__ == "__main__":

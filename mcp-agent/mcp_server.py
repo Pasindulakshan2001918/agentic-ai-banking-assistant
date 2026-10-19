@@ -9,6 +9,8 @@ from agent.config import MCP_TRANSPORT, MCP_HOST, MCP_PORT
 from agent.tools import mcp
 
 if __name__ == "__main__":
+    if mcp is None:
+        raise RuntimeError('FastMCP support is optional. Install with: pip install ".[mcp]"')
     if MCP_TRANSPORT == "sse":
         mcp.run(transport="sse", host=MCP_HOST, port=MCP_PORT)
     else:

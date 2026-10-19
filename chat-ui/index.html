@@ -311,7 +311,7 @@ async function sendMsg(text=null){
     const r=await fetch(`${GATEWAY}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({session_id:sessionId,message:msg})});
     removeTyping();
-    if(!r.ok){const e=await r.json();throw new Error(e.detail||'Error');}
+    if(!r.ok){const e=await r.json();const error=new Error(e.detail||'Error');error.status=r.status;throw error;}
     const d=await r.json();
     if(d.lang&&d.lang!==lang){
       lang=d.lang;
@@ -321,7 +321,8 @@ async function sendMsg(text=null){
     addBot(d.reply||'');
     updateQR(d.reply||'');
   } catch(e){
-    removeTyping(); addBot('Sorry, something went wrong. Please try again.',true);
+    removeTyping();
+    addBot(e.status===503?e.message:'Sorry, something went wrong. Please try again.',true);
   } finally { setLoad(false); }
 }
 

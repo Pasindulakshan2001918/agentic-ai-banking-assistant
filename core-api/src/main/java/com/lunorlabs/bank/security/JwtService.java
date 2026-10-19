@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -35,6 +36,18 @@ public class JwtService {
                 .compact();
     }
 
+    public String issueAdmin(String email, UUID sessionId) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(email)
+                .claim("principal_type", "ADMIN")
+                .claim("session_id", sessionId.toString())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(ttlMinutes * 60L)))
+                .signWith(key)
+                .compact();
+    }
+
     public int ttlSeconds() { return ttlMinutes * 60; }
 
     /** @throws io.jsonwebtoken.JwtException if invalid or expired */
@@ -42,4 +55,14 @@ public class JwtService {
         String sub = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getSubject();
         return UUID.fromString(sub);
     }
+
+    public AdminClaims parseAdmin(String token) {
+        var claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        if (!"ADMIN".equals(claims.get("principal_type", String.class))) {
+            throw new IllegalArgumentException("Not an administrator token");
+        }
+        return new AdminClaims(claims.getSubject(), UUID.fromString(claims.get("session_id", String.class)));
+    }
+
+    public record AdminClaims(String email, UUID sessionId) {}
 }

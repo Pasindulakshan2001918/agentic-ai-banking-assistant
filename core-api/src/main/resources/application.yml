@@ -19,6 +19,10 @@ bank:
   jwt:
     secret: ${JWT_SECRET:}          # >= 32 chars; app refuses to start without it
     ttl-minutes: 60
+  admin:
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
+    name: ${ADMIN_NAME:System Administrator}
   action:
     ttl-minutes: 5
   otp:

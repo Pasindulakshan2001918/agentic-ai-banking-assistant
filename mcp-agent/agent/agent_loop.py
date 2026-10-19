@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import litellm
@@ -208,12 +210,140 @@ async def _llm(messages: list[dict], session: Session) -> Any:
             log.warning("LLM call failed (model=%s): %s", model, e)
     raise RuntimeError("Both primary and fallback models failed.")
 
+
+def _offline_language(message: str, fallback: str) -> str:
+    if re.search(r"[\u0D80-\u0DFF]", message):
+        return "si"
+    if re.search(r"[\u0B80-\u0BFF]", message):
+        return "ta"
+    return fallback if fallback in ("en", "si", "ta") else "en"
+
+
+def _offline_intent(message: str) -> str | None:
+    text = message.casefold()
+    if any(word in text for word in ("balance", "ශේෂය", "இருப்பு")):
+        return "accounts"
+    if any(word in text for word in ("loan", "loans", "lease", "ණය", "கடன்")):
+        return "loans"
+    if any(word in text for word in ("card", "cards", "කාඩ්", "அட்டை")):
+        return "cards"
+    if any(word in text for word in ("account", "accounts", "ගිණුම", "கணக்கு")):
+        return "accounts"
+    if text.strip() in {"hello", "hi", "hey", "hello!", "hi!", "hey!", "thanks", "thank you",
+                        "ආයුබෝවන්", "வணக்கம்"}:
+        return "greeting"
+    return None
+
+
+def _offline_money(value: Any, currency: str = "LKR") -> str:
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ValueError("Bank API returned an invalid monetary value") from error
+    if not amount.is_finite():
+        raise ValueError("Bank API returned a non-finite monetary value")
+    return f"{currency} {amount:,.2f}"
+
+
+def _offline_no_data(lang: str, kind: str) -> str:
+    messages = {
+        "en": {"accounts": "No accounts were found.", "loans": "No loans were found.", "cards": "No cards were found."},
+        "si": {"accounts": "ගිණුම් හමු නොවීය.", "loans": "ණය හමු නොවීය.", "cards": "කාඩ්පත් හමු නොවීය."},
+        "ta": {"accounts": "கணக்குகள் எதுவும் இல்லை.", "loans": "கடன்கள் எதுவும் இல்லை.", "cards": "அட்டைகள் எதுவும் இல்லை."},
+    }
+    return messages[lang][kind]
+
+
+async def _offline_chat(user_message: str, session: Session) -> str:
+    """Serve safe, read-only banking queries when no generative model is configured."""
+    lang = _offline_language(user_message, session.lang)
+    session.lang = lang
+    intent = _offline_intent(user_message)
+
+    if session.pending:
+        reply = {
+            "en": "For your security, pending transactions cannot be confirmed or changed while AI chat is unavailable. Please configure the AI provider and start a new session.",
+            "si": "ඔබගේ ආරක්ෂාව සඳහා, AI සේවාව නොමැති විට බලාපොරොත්තු වන ගනුදෙනුවක් තහවුරු කිරීමට හෝ වෙනස් කිරීමට නොහැක. AI සේවාව සකසා නව සැසියක් ආරම්භ කරන්න.",
+            "ta": "உங்கள் பாதுகாப்பிற்காக, AI சேவை இல்லாதபோது நிலுவையிலுள்ள பரிவர்த்தனையை உறுதிப்படுத்தவோ மாற்றவோ முடியாது. AI சேவையை அமைத்து புதிய அமர்வைத் தொடங்குங்கள்.",
+        }[lang]
+    elif intent == "greeting":
+        reply = {
+            "en": f"Hello {session.customer_name or 'there'}! I can look up your account balances, loan details, or card status. Payments and transfers need the AI service.",
+            "si": f"ආයුබෝවන් {session.customer_name or ''}! ඔබගේ ගිණුම් ශේෂ, ණය තොරතුරු හෝ කාඩ්පත් තත්ත්වය පරීක්ෂා කළ හැක. ගෙවීම් සහ මුදල් මාරු කිරීමට AI සේවාව අවශ්‍යයි.",
+            "ta": f"வணக்கம் {session.customer_name or ''}! உங்கள் கணக்கு இருப்புகள், கடன் விவரங்கள் அல்லது அட்டை நிலையைப் பார்க்கலாம். கட்டணங்கள் மற்றும் பணப் பரிமாற்றங்களுக்கு AI சேவை தேவை.",
+        }[lang]
+    elif intent in ("accounts", "loans", "cards"):
+        result = await {
+            "accounts": tool_module.get_accounts,
+            "loans": tool_module.get_loans,
+            "cards": tool_module.get_cards,
+        }[intent](session=session)
+        if "error" in result:
+            log.error("offline %s lookup failed: %s", intent, result["error"])
+            reply = {
+                "en": "I couldn't retrieve that information from the banking service. Please try again.",
+                "si": "බැංකු සේවාවෙන් එම තොරතුරු ලබාගත නොහැකි විය. නැවත උත්සාහ කරන්න.",
+                "ta": "வங்கி சேவையிலிருந்து அந்தத் தகவலைப் பெற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+            }[lang]
+        elif intent == "accounts":
+            accounts = result.get("accounts", [])
+            if not accounts:
+                reply = _offline_no_data(lang, intent)
+            else:
+                heading = {"en": "Your account balances:", "si": "ඔබගේ ගිණුම් ශේෂයන්:", "ta": "உங்கள் கணக்கு இருப்புகள்:"}[lang]
+                lines = [
+                    f"{item.get('nickname') or item.get('productType') or 'Account'} "
+                    f"({item.get('masked') or 'masked number unavailable'}): "
+                    f"{_offline_money(item.get('balance'), item.get('currency') or 'LKR')}"
+                    for item in accounts
+                ]
+                reply = heading + "\n" + "\n".join(lines)
+        elif intent == "loans":
+            loans = result.get("loans", [])
+            if not loans:
+                reply = _offline_no_data(lang, intent)
+            else:
+                heading = {"en": "Your loans:", "si": "ඔබගේ ණය:", "ta": "உங்கள் கடன்கள்:"}[lang]
+                lines = [
+                    f"{item.get('product_type') or item.get('loan_no') or 'Loan'}: "
+                    f"outstanding {_offline_money(item.get('outstanding'))}; "
+                    f"original principal {_offline_money(item.get('principal'))}"
+                    for item in loans
+                ]
+                reply = heading + "\n" + "\n".join(lines)
+        else:
+            cards = result.get("cards", [])
+            if not cards:
+                reply = _offline_no_data(lang, intent)
+            else:
+                heading = {"en": "Your cards:", "si": "ඔබගේ කාඩ්පත්:", "ta": "உங்கள் அட்டைகள்:"}[lang]
+                lines = [
+                    f"{item.get('card_type') or 'Card'} {item.get('network') or ''} "
+                    f"ending in {item.get('card_last4') or '••••'}: {item.get('status') or 'status unavailable'}"
+                    for item in cards
+                ]
+                reply = heading + "\n" + "\n".join(lines)
+    else:
+        reply = {
+            "en": "AI chat is not configured yet. Without it, I can only look up account balances, loan details, and card status. Payments and transfers are unavailable.",
+            "si": "AI සංවාදය තවම සකසා නැත. එය නොමැතිව ගිණුම් ශේෂ, ණය තොරතුරු සහ කාඩ්පත් තත්ත්වය පමණක් පරීක්ෂා කළ හැක. ගෙවීම් සහ මුදල් මාරු කළ නොහැක.",
+            "ta": "AI உரையாடல் இன்னும் அமைக்கப்படவில்லை. அது இல்லாமல் கணக்கு இருப்புகள், கடன் விவரங்கள் மற்றும் அட்டை நிலையை மட்டுமே பார்க்க முடியும். கட்டணங்கள் மற்றும் பணப் பரிமாற்றங்கள் கிடைக்காது.",
+        }[lang]
+
+    session.add_user(user_message)
+    session.add_assistant(reply)
+    return reply
+
+
 # ── Main entry point ─────────────────────────────────────────────────────────
 
 async def chat(user_message: str, session: Session) -> str:
     """Process one user turn and return the assistant reply.
     The agent loop runs until the LLM stops calling tools (max 8 iterations to prevent runaway).
     """
+    if not GEMINI_API_KEY:
+        return await _offline_chat(user_message, session)
+
     # 1. Classify intent (cheap isolated call — intelligence budget)
     intent_data = await classify(user_message)
     intent      = intent_data.get("intent", "OTHER")

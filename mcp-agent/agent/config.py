@@ -14,8 +14,8 @@ def _require(key: str) -> str:
     return v
 
 BANK_API_URL  = os.getenv("BANK_API_URL", "http://127.0.0.1:8081").rstrip("/")
-PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gemini/gemini-3.1-flash-lite")
-FALLBACK_MODEL= os.getenv("FALLBACK_MODEL", "gemini/gemini-3.5-flash-lite")
+PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gemini/gemini-2.5-flash-lite")
+FALLBACK_MODEL= os.getenv("FALLBACK_MODEL", "gemini/gemini-2.5-flash")
 GEMINI_API_KEY= os.getenv("GEMINI_API_KEY", "")
 
 MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")

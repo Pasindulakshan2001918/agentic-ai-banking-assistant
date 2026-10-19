@@ -13,14 +13,25 @@ import uuid
 import logging
 from typing import Any
 
-from fastmcp import FastMCP
+try:
+    from fastmcp import FastMCP
+except ModuleNotFoundError as error:
+    if error.name != "fastmcp":
+        raise
+    FastMCP = None
 
 from agent.bank_client import BankClient
 from agent.session import Session, PendingState
 
 log = logging.getLogger(__name__)
 
-mcp = FastMCP("bank-tools")
+mcp = FastMCP("bank-tools") if FastMCP else None
+
+
+def _register_tool():
+    if mcp is None:
+        return lambda function: function
+    return mcp.tool()
 
 
 # ─────────────────────────────── helpers ──────────────────────────────────────
@@ -103,7 +114,7 @@ def _prepare_response(data: dict, session: Session) -> dict:
 
 # ─────────────────────────────── read tools ───────────────────────────────────
 
-@mcp.tool()
+@_register_tool()
 async def get_accounts(session: Session) -> dict:
     """Return the customer's accounts with balances."""
     try:
@@ -114,7 +125,7 @@ async def get_accounts(session: Session) -> dict:
         return {"error": str(e)}
 
 
-@mcp.tool()
+@_register_tool()
 async def get_payees(session: Session, query: str = "") -> dict:
     """Search saved payees by name. Leave query empty to list all."""
     try:
@@ -124,7 +135,7 @@ async def get_payees(session: Session, query: str = "") -> dict:
         return {"error": str(e)}
 
 
-@mcp.tool()
+@_register_tool()
 async def search_billers(session: Session, query: str) -> dict:
     """Search billers by name or alias (e.g. 'ceb', 'water', 'dialog').
     Returns ranked matches. If score gap between top two is < 0.15 the agent should ask the customer to confirm which one."""
@@ -135,7 +146,7 @@ async def search_billers(session: Session, query: str) -> dict:
         return {"error": str(e)}
 
 
-@mcp.tool()
+@_register_tool()
 async def get_registered_billers(session: Session) -> dict:
     """Return the customer's saved billers with current dues and due dates."""
     try:
@@ -144,7 +155,7 @@ async def get_registered_billers(session: Session) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-@mcp.tool()
+@_register_tool()
 async def get_cards(session: Session) -> dict:
     """Return the customer's credit and debit cards, including their IDs and statuses."""
     try:
@@ -153,7 +164,7 @@ async def get_cards(session: Session) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-@mcp.tool()
+@_register_tool()
 async def get_loans(session: Session) -> dict:
     """Return the customer's loans and leases."""
     try:
@@ -162,7 +173,7 @@ async def get_loans(session: Session) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-@mcp.tool()
+@_register_tool()
 async def block_card(session: Session, card_id: str) -> dict:
     """Block a specific credit or debit card immediately (e.g. if lost/stolen). 
     You MUST call get_cards first to find the card_id.
@@ -180,7 +191,7 @@ async def block_card(session: Session, card_id: str) -> dict:
 
 # ─────────────────────────────── prepare tools ────────────────────────────────
 
-@mcp.tool()
+@_register_tool()
 async def prepare_fund_transfer(
     session: Session,
     from_account_id: str,
@@ -217,7 +228,7 @@ async def prepare_fund_transfer(
         return {"status": "ERROR", "tell_user": "Something went wrong. Please try again.", "error": str(e)}
 
 
-@mcp.tool()
+@_register_tool()
 async def prepare_bill_payment(
     session: Session,
     from_account_id: str,
@@ -245,7 +256,7 @@ async def prepare_bill_payment(
 
 # ─────────────────────────────── confirm / OTP / cancel ───────────────────────
 
-@mcp.tool()
+@_register_tool()
 async def confirm_action(
     session: Session,
     otp: str | None = None,
@@ -290,7 +301,7 @@ async def confirm_action(
         return {"status": "ERROR", "tell_user": "Something went wrong during confirmation.", "error": str(e)}
 
 
-@mcp.tool()
+@_register_tool()
 async def resend_otp(session: Session) -> dict:
     """Resend the OTP for the current pending action."""
     ps = session.pending
@@ -306,7 +317,7 @@ async def resend_otp(session: Session) -> dict:
         return {"status": "ERROR", "tell_user": "Could not resend OTP.", "error": str(e)}
 
 
-@mcp.tool()
+@_register_tool()
 async def cancel_action(session: Session) -> dict:
     """Cancel the current pending action. Call this when the customer says no or cancel."""
     ps = session.pending
@@ -321,7 +332,7 @@ async def cancel_action(session: Session) -> dict:
     return {"status": "CANCELLED", "tell_user": "Request cancelled.", "next_action": "none"}
 
 
-@mcp.tool()
+@_register_tool()
 async def get_receipt(session: Session, txn_ref: str) -> dict:
     """Fetch a formatted receipt for a completed transaction."""
     try:
