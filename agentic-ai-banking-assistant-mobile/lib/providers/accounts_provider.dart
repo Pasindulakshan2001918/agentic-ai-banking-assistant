@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/account_model.dart';
 import '../models/card_model.dart';
@@ -7,10 +8,12 @@ import '../models/biller_model.dart';
 import '../models/user_model.dart';
 import '../services/api_client.dart';
 import '../services/bank_service.dart';
+import '../services/websocket_service.dart';
 
 /// Provides all banking data (accounts, cards, loans, payees, billers).
 class BankDataProvider extends ChangeNotifier {
   final BankService _bankService;
+  StreamSubscription? _wsSubscription;
 
   UserModel? _profile;
   List<AccountModel> _accounts = [];
@@ -21,7 +24,25 @@ class BankDataProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
-  BankDataProvider(ApiClient api) : _bankService = BankService(api);
+  BankDataProvider(ApiClient api) : _bankService = BankService(api) {
+    _initWebSocketListener();
+  }
+
+  void _initWebSocketListener() {
+    _wsSubscription = WebSocketService().stream.listen((payload) {
+      final eventType = payload['event'] ?? payload['type'];
+      debugPrint('[BankDataProvider] WS event received: $eventType');
+      if (eventType == 'BALANCE_UPDATED' ||
+          eventType == 'TRANSACTION_CREATED' ||
+          eventType == 'PAYMENT_RECEIVED') {
+        refreshAccounts();
+      } else if (eventType == 'CARD_STATUS_CHANGED' || eventType == 'CARD_ISSUED') {
+        refreshCards();
+      } else if (eventType == 'CUSTOMER_UPDATED') {
+        loadAll();
+      }
+    });
+  }
 
   UserModel? get profile => _profile;
   List<AccountModel> get accounts => _accounts;
@@ -174,5 +195,11 @@ class BankDataProvider extends ChangeNotifier {
     _payees = [];
     _billers = [];
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _wsSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -48,10 +48,13 @@ public class ActionService {
     private final MessageService messages;
     private final BankProperties props;
     private final ObjectMapper om;
+    private final com.lunorlabs.bank.websocket.NotificationService notifications;
+    private final com.lunorlabs.bank.repo.AccountRepo accounts;
 
     public ActionService(ActionRegistry registry, PendingActionRepo pendings, SessionRepo sessions, OtpService otp,
                          LedgerService ledger, AuditRepo audit, MessageService messages, BankProperties props,
-                         ObjectMapper om) {
+                         ObjectMapper om, com.lunorlabs.bank.websocket.NotificationService notifications,
+                         com.lunorlabs.bank.repo.AccountRepo accounts) {
         this.registry = registry;
         this.pendings = pendings;
         this.sessions = sessions;
@@ -61,6 +64,8 @@ public class ActionService {
         this.messages = messages;
         this.props = props;
         this.om = om;
+        this.notifications = notifications;
+        this.accounts = accounts;
     }
 
     // ------------------------------------------------------------------ prepare
@@ -176,6 +181,59 @@ public class ActionService {
         try {
             PostResult res = handler.execute(p, o, idemKey);
             audit(meta, "EXECUTION", "ALLOW", List.of(), null, p.id(), "COMPLETED " + res.txnRef(), type);
+
+            // Real-time WebSocket notifications to the sender
+            var fromAcc = o.plan() != null ? accounts.findById(o.plan().fromAccountId()).orElse(null) : null;
+            if (fromAcc != null) {
+                notifications.notifyCustomer(meta.customerId(), "BALANCE_UPDATED", Map.of(
+                    "accountId", fromAcc.id().toString(),
+                    "accountNo", fromAcc.accountNo(),
+                    "balance", fromAcc.balance(),
+                    "change", o.plan().amount(),
+                    "type", "DEBIT",
+                    "txnRef", res.txnRef()
+                ));
+                notifications.notifyCustomer(meta.customerId(), "TRANSACTION_CREATED", Map.of(
+                    "accountId", fromAcc.id().toString(),
+                    "accountNo", fromAcc.accountNo(),
+                    "amount", o.plan().amount(),
+                    "type", "DEBIT",
+                    "txnRef", res.txnRef()
+                ));
+            }
+
+            // If internal recipient exists, notify recipient in real time
+            if (o.plan() != null && o.plan().creditAccountId() != null) {
+                accounts.findById(o.plan().creditAccountId()).ifPresent(creditAcc -> {
+                    notifications.notifyCustomer(creditAcc.customerId(), "BALANCE_UPDATED", Map.of(
+                        "accountId", creditAcc.id().toString(),
+                        "accountNo", creditAcc.accountNo(),
+                        "balance", creditAcc.balance(),
+                        "change", o.plan().amount(),
+                        "type", "CREDIT",
+                        "txnRef", res.txnRef()
+                    ));
+                    notifications.notifyCustomer(creditAcc.customerId(), "PAYMENT_RECEIVED", Map.of(
+                        "accountNo", creditAcc.accountNo(),
+                        "amount", o.plan().amount(),
+                        "description", "Transfer from " + (fromAcc != null ? fromAcc.accountNo() : "Customer"),
+                        "txnRef", res.txnRef()
+                    ));
+                    notifications.notifyCustomer(creditAcc.customerId(), "TRANSACTION_CREATED", Map.of(
+                        "accountNo", creditAcc.accountNo(),
+                        "amount", o.plan().amount(),
+                        "type", "CREDIT",
+                        "txnRef", res.txnRef()
+                    ));
+                });
+            }
+
+            // Real-time notification to all bank admins
+            notifications.notifyAdmins("ADMIN_STATS_UPDATED", Map.of("reason", "TRANSACTION", "txnRef", res.txnRef()));
+            if (fromAcc != null) {
+                notifications.notifyAdmins("BALANCE_UPDATED", Map.of("accountNo", fromAcc.accountNo(), "balance", fromAcc.balance()));
+            }
+
             return completed(lang, p, res, type);
         } catch (InsufficientFundsException e) {
             String why = messages.text(ReasonCode.INSUFFICIENT_FUNDS.name(), lang, Map.of());

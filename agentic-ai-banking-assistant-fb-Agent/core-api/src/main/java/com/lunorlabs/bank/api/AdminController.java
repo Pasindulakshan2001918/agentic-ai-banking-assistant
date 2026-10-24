@@ -2,6 +2,7 @@ package com.lunorlabs.bank.api;
 
 import com.lunorlabs.bank.common.ApiException;
 import com.lunorlabs.bank.security.JwtService;
+import com.lunorlabs.bank.websocket.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -27,10 +28,12 @@ public class AdminController {
 
     private final JdbcClient jdbc;
     private final JwtService jwt;
+    private final NotificationService notifications;
 
-    public AdminController(JdbcClient jdbc, JwtService jwt) {
+    public AdminController(JdbcClient jdbc, JwtService jwt, NotificationService notifications) {
         this.jdbc = jdbc;
         this.jwt = jwt;
+        this.notifications = notifications;
     }
 
     // ── Admin Login ────────────────────────────────────────────────────────────
@@ -262,6 +265,10 @@ public class AdminController {
         m.put("initialBalance", req.initialBalance());
         m.put("currency", "LKR");
         m.put("message", "Customer account created successfully. Share the account number with the customer.");
+
+        // WebSocket notification to all admins to live-update stats
+        notifications.notifyAdmins("ADMIN_STATS_UPDATED", Map.of("reason", "NEW_CUSTOMER", "accountNo", accountNo));
+
         return m;
     }
 
@@ -394,6 +401,11 @@ public class AdminController {
         m.put("status", "ACTIVE");
         m.put("onlineTxnEnabled", true);
         m.put("message", "Card created successfully and linked to account.");
+
+        // Real-time WebSocket notifications
+        notifications.notifyCustomer(customerId, "CARD_STATUS_CHANGED", Map.of("cardId", cardId.toString(), "status", "ACTIVE", "last4", last4));
+        notifications.notifyAdmins("ADMIN_STATS_UPDATED", Map.of("reason", "NEW_CARD", "cardId", cardId.toString()));
+
         return m;
     }
 
@@ -561,6 +573,40 @@ public class AdminController {
         res.put("previousBalance", currentBal);
         res.put("newBalance", newBal);
         res.put("txnRef", txnRef);
+
+        // Real-time WebSocket notifications to the customer & admins
+        notifications.notifyCustomer(customerId, "BALANCE_UPDATED", Map.of(
+            "accountNo", acc.get("account_no"),
+            "balance", newBal,
+            "previousBalance", currentBal,
+            "change", req.amount(),
+            "type", "CREDIT",
+            "remarks", remarks,
+            "txnRef", txnRef
+        ));
+        notifications.notifyCustomer(customerId, "PAYMENT_RECEIVED", Map.of(
+            "accountNo", acc.get("account_no"),
+            "amount", req.amount(),
+            "description", "Cash deposit at branch counter",
+            "txnRef", txnRef
+        ));
+        notifications.notifyCustomer(customerId, "TRANSACTION_CREATED", Map.of(
+            "accountNo", acc.get("account_no"),
+            "amount", req.amount(),
+            "type", "CREDIT",
+            "remarks", remarks,
+            "txnRef", txnRef
+        ));
+        notifications.notifyAdmins("ADMIN_STATS_UPDATED", Map.of(
+            "reason", "DEPOSIT",
+            "accountNo", acc.get("account_no"),
+            "amount", req.amount()
+        ));
+        notifications.notifyAdmins("BALANCE_UPDATED", Map.of(
+            "accountNo", acc.get("account_no"),
+            "balance", newBal
+        ));
+
         return res;
     }
 

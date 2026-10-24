@@ -1,5 +1,6 @@
 import 'api_client.dart';
 import 'storage_service.dart';
+import 'websocket_service.dart';
 
 /// Handles real password-based login and account registration.
 class AuthService {
@@ -33,6 +34,9 @@ class AuthService {
     await StorageService.saveCif(customerId);
     await StorageService.saveCustomerName(fullName);
     await StorageService.saveLang(lang);
+
+    // Connect WebSocket
+    WebSocketService().connect(token);
 
     // 2. Open agent gateway session using the JWT (no CIF needed in production)
     final gwResp = await _api.gatewayPost('/login', body: {
@@ -81,6 +85,9 @@ class AuthService {
     await StorageService.saveCustomerName(fullName);
     await StorageService.saveLang(lang);
 
+    // Connect WebSocket
+    WebSocketService().connect(token);
+
     // 2. Open agent session with the new JWT
     final gwResp = await _api.gatewayPost('/login', body: {
       'token': token,
@@ -104,6 +111,7 @@ class AuthService {
   // ── Logout ─────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
+    WebSocketService().disconnect();
     await StorageService.clearAll();
   }
 

@@ -31,13 +31,16 @@ public class ReadController {
     private final PayeeRepo payees;
     private final BillerRepo billers;
     private final JdbcClient jdbc;
+    private final com.lunorlabs.bank.websocket.NotificationService notifications;
 
-    public ReadController(CustomerRepo customers, AccountRepo accounts, PayeeRepo payees, BillerRepo billers, JdbcClient jdbc) {
+    public ReadController(CustomerRepo customers, AccountRepo accounts, PayeeRepo payees, BillerRepo billers, JdbcClient jdbc,
+                          com.lunorlabs.bank.websocket.NotificationService notifications) {
         this.customers = customers;
         this.accounts = accounts;
         this.payees = payees;
         this.billers = billers;
         this.jdbc = jdbc;
+        this.notifications = notifications;
     }
 
     @GetMapping("/me")
@@ -146,6 +149,8 @@ public class ReadController {
         if (updated == 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CARD", "Card not found or already blocked.");
         }
+        notifications.notifyCustomer(meta.customerId(), "CARD_STATUS_CHANGED", Map.of("cardId", id.toString(), "status", "BLOCKED"));
+        notifications.notifyAdmins("CARD_STATUS_CHANGED", Map.of("cardId", id.toString(), "status", "BLOCKED"));
         return Map.of("status", "COMPLETED", "message", "Card successfully blocked.");
     }
 

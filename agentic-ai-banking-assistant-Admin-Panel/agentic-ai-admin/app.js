@@ -99,7 +99,7 @@ function shellMarkup() {
       <header class="topbar">
         <button class="icon-button menu-toggle" id="menu-toggle" type="button" aria-label="Toggle navigation">☰</button>
         <div class="breadcrumb">Agentic AI Bank <strong>/ ${escapeHtml(PAGES[state.page]?.label || state.page)}</strong></div>
-        <div class="top-actions"><span class="env-chip"><span class="env-dot"></span>Live DB</span><button class="icon-button" id="logout" type="button" title="Sign out" aria-label="Sign out">↪</button></div>
+        <div class="top-actions"><span class="env-chip"><span class="env-dot"></span>Live DB</span><span class="env-chip"><span class="env-dot" id="ws-status-dot" style="background:#00e5a3"></span><span id="ws-status-text">Live WS</span></span><button class="icon-button" id="logout" type="button" title="Sign out" aria-label="Sign out">↪</button></div>
       </header>
       <main class="main-content" id="page-content"><div class="loading">Loading secure workspace</div></main>
     </div>
@@ -833,6 +833,112 @@ function navigate(page) {
 
 // ── Render ─────────────────────────────────────────────────────────────────────
 
+// ── Live WebSocket Stream ──────────────────────────────────────────────────────
+
+let wsClient = null;
+let wsReconnectTimer = null;
+let wsPingInterval = null;
+
+function initAdminWebSocket() {
+  if (!state.token) return;
+  if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
+  const wsUrl = state.apiBase.replace(/^http/, "ws") + "/ws?token=" + encodeURIComponent(state.token);
+  try {
+    wsClient = new WebSocket(wsUrl);
+
+    wsClient.onopen = () => {
+      console.log("[Admin WS] Connected to real-time event stream");
+      updateWsBadge(true);
+      clearInterval(wsPingInterval);
+      wsPingInterval = setInterval(() => {
+        if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+          wsClient.send("PING");
+        }
+      }, 25000);
+    };
+
+    wsClient.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        handleLiveEvent(msg);
+      } catch (err) {
+        console.warn("[Admin WS] Failed to parse message:", err);
+      }
+    };
+
+    wsClient.onclose = () => {
+      updateWsBadge(false);
+      clearInterval(wsPingInterval);
+      wsClient = null;
+      if (state.token) {
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = setTimeout(initAdminWebSocket, 3000);
+      }
+    };
+
+    wsClient.onerror = (err) => {
+      console.warn("[Admin WS] Connection error:", err);
+    };
+  } catch (err) {
+    console.warn("[Admin WS] Socket init failed:", err);
+  }
+}
+
+function updateWsBadge(online) {
+  const dot = document.getElementById("ws-status-dot");
+  const text = document.getElementById("ws-status-text");
+  if (dot) dot.style.background = online ? "#00e5a3" : "#ff9900";
+  if (text) text.textContent = online ? "Live WS" : "Connecting...";
+}
+
+function handleLiveEvent(msg) {
+  if (!msg || !msg.event) return;
+  const event = msg.event;
+  const data = msg.data || {};
+
+  // Auto-refresh active page if state has changed
+  if (state.page === "dashboard") {
+    loadDashboard();
+  } else if (state.page === "users") {
+    loadModule("users");
+  } else if (state.page === "audit") {
+    loadModule("audit");
+  } else if (state.page === "transactions") {
+    loadModule("transactions");
+  }
+
+  // Show live toast banner in admin interface
+  if (event === "BALANCE_UPDATED") {
+    showLiveToast(`Live Update: ${data.accountNo || "Account"} balance is now LKR ${formatMoney(data.balance)}`);
+  } else if (event === "ADMIN_STATS_UPDATED") {
+    showLiveToast(`Live Activity: ${humanize(data.reason || "System updated")}`);
+  } else if (event === "CARD_STATUS_CHANGED") {
+    showLiveToast(`Card status updated to ${data.status}`);
+  }
+}
+
+function showLiveToast(text) {
+  let container = document.getElementById("admin-toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "admin-toast-container";
+    container.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.style.cssText = "background:rgba(18,24,38,0.95);border:1px solid rgba(0,229,163,0.4);border-radius:8px;color:#fff;padding:11px 16px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,0.6);display:flex;align-items:center;gap:10px;pointer-events:auto;backdrop-filter:blur(8px);transition:all 0.3s ease;";
+  toast.innerHTML = `<span style="color:#00e5a3;font-size:15px">⚡</span><span>${escapeHtml(text)}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(8px)";
+    setTimeout(() => toast.remove(), 350);
+  }, 4000);
+}
+
 function render() {
   if (!state.token || !state.admin) {
     root.innerHTML = loginMarkup();
@@ -841,6 +947,7 @@ function render() {
     root.innerHTML = shellMarkup();
     attachShellHandlers();
     navigate(state.page);
+    initAdminWebSocket();
   }
 }
 
@@ -878,6 +985,7 @@ function attachLoginHandlers() {
       sessionStorage.setItem(STORAGE_KEYS.token, state.token);
       sessionStorage.setItem(STORAGE_KEYS.admin, JSON.stringify(state.admin));
       render();
+      initAdminWebSocket();
     } catch (err) {
       btn.disabled = false;
       btn.textContent = "Sign in securely";
@@ -895,6 +1003,12 @@ function attachLoginHandlers() {
 function attachShellHandlers() {
   // Logout
   document.getElementById("logout")?.addEventListener("click", () => {
+    if (wsClient) {
+      try { wsClient.close(); } catch {}
+      wsClient = null;
+    }
+    clearInterval(wsPingInterval);
+    clearTimeout(wsReconnectTimer);
     state.token = null;
     state.admin = null;
     sessionStorage.removeItem(STORAGE_KEYS.token);

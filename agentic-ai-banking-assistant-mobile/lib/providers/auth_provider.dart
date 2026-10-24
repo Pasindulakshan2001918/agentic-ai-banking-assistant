@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
+import '../services/websocket_service.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
@@ -36,6 +37,11 @@ class AuthProvider extends ChangeNotifier {
       _sessionId    = await StorageService.getSessionId();
       _lang         = await StorageService.getLang() ?? 'en';
       _status       = AuthStatus.authenticated;
+
+      final token = await StorageService.getToken();
+      if (token != null && token.isNotEmpty) {
+        WebSocketService().connect(token);
+      }
     } else {
       _status = AuthStatus.unauthenticated;
     }
