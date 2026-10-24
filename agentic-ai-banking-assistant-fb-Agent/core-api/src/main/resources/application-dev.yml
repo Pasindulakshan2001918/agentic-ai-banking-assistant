@@ -1,0 +1,16 @@
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+    validate-on-migrate: false
+
+bank:
+  dev-login-enabled: true
+  jwt:
+    secret: dev-only-secret-change-me-dev-only-secret-change-me
+  otp:
+    dev-echo: true
+    pepper: dev-only-pepper
+
+logging:
+  level:
+    com.lunorlabs.bank: DEBUG

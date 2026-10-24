@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: bank-core
+  profiles:
+    default: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bank}
+    username: ${DB_USER:bank}
+    password: ${DB_PASSWORD:bank}
+    hikari:
+      connection-test-query: SELECT 1
+      validation-timeout: 2000
+      max-lifetime: 600000
+      idle-timeout: 300000
+  flyway:
+    locations: classpath:db/migration
+    validate-on-migrate: false
+
+server:
+  port: 8081
+
+bank:
+  own-bank-code: "7010"
+  dev-login-enabled: false
+  jwt:
+    secret: ${JWT_SECRET:}          # >= 32 chars; app refuses to start without it
+    ttl-minutes: 60
+  action:
+    ttl-minutes: 5
+  otp:
+    ttl-minutes: 5
+    max-attempts: 3
+    max-resends: 3
+    dev-echo: false                 # NEVER true outside local dev
+    pepper: ${OTP_PEPPER:}
