@@ -135,3 +135,28 @@ Or target a specific device:
 8. Tap **"AI Agent"** button:
    - Ask: *"What is my account balance?"*
    - Agent replies with real-time balance of `ACC555001`: **LKR 50,000.00**!
+
+---
+
+## ⚡ Real-Time WebSocket Architecture
+
+The system features end-to-end WebSocket synchronization across all three tiers:
+
+- **Endpoint**: `ws://localhost:8081/api/v1/ws?token=<JWT>`
+- **Authentication**: Intercepted and verified via `JwtHandshakeInterceptor` at connection handshake.
+- **Features**:
+  - **Customer Mobile App**:
+    - Automatically maintains a single persistent, auto-reconnecting WebSocket connection.
+    - `BankDataProvider` silently refreshes account balances and card statuses without resetting scroll or page state.
+    - Floating real-time in-app notification banners appear instantly when funds arrive (`PAYMENT_RECEIVED`) or deposits are confirmed (`BALANCE_UPDATED`).
+  - **Admin Web Panel**:
+    - Persistent connection with live status indicator chip (`Live Connected`).
+    - Live toast alerts for customer deposits, transfers, and card status changes.
+    - Auto-reloads accounts table, dashboard stat tiles, and recent activity feed in real time without browser refreshes.
+  - **Event Types**:
+    - `BALANCE_UPDATED`: Dispatched on cash deposits and transfers.
+    - `PAYMENT_RECEIVED`: Dispatched directly to the beneficiary customer.
+    - `TRANSACTION_CREATED`: Real-time ledger audit sync.
+    - `CARD_STATUS_CHANGED`: Live card block / unblock notification.
+    - `CARD_ISSUED`: Dispatched when an admin creates a new debit/credit card.
+    - `CUSTOMER_UPDATED`: Real-time customer profile change notification.
