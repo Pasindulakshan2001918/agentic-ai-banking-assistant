@@ -35,11 +35,34 @@ public class JwtService {
                 .compact();
     }
 
+    /** Issue a JWT for an admin user. Subject is prefixed with "ADMIN:" so it can be distinguished. */
+    public String issueAdmin(UUID adminId) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject("ADMIN:" + adminId.toString())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(ttlMinutes * 60L)))
+                .signWith(key)
+                .compact();
+    }
+
     public int ttlSeconds() { return ttlMinutes * 60; }
 
     /** @throws io.jsonwebtoken.JwtException if invalid or expired */
     public UUID parse(String token) {
         String sub = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getSubject();
+        if (sub.startsWith("ADMIN:")) {
+            return UUID.fromString(sub.substring(6));
+        }
         return UUID.fromString(sub);
+    }
+
+    public boolean isAdmin(String token) {
+        try {
+            String sub = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getSubject();
+            return sub.startsWith("ADMIN:");
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

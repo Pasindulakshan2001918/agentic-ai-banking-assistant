@@ -80,6 +80,28 @@ class BankClient:
             r.raise_for_status()
             return r.json()
 
+    async def get_transactions(self, limit: int = 15) -> list[dict]:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+            r = await c.get(f"{BANK_API_URL}/api/v1/transactions", params={"limit": limit}, headers=self._headers())
+            r.raise_for_status()
+            return r.json().get("transactions", [])
+
+    async def add_payee(self, nickname: str, beneficiary_name: str, account_no: str, bank_code: str = "7010", bank_name: str = "Bank of Ceylon") -> dict:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+            r = await c.post(
+                f"{BANK_API_URL}/api/v1/payees",
+                json={
+                    "nickname": nickname,
+                    "beneficiaryName": beneficiary_name,
+                    "accountNo": account_no,
+                    "bankCode": bank_code,
+                    "bankName": bank_name,
+                },
+                headers=self._headers()
+            )
+            r.raise_for_status()
+            return r.json()
+
     # ------------------------------------------------------------------ actions
     async def prepare(self, action_type: str, params: dict) -> dict:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
@@ -126,6 +148,15 @@ class BankClient:
             pass   # audit failure must never break a banking call
 
     # ------------------------------------------------------------------ dev helper
+    @classmethod
+    async def from_token(cls, token: str, session_id: str, lang: str = "en") -> "BankClient":
+        """Create a BankClient from an already-issued JWT (production path).
+        Verifies the token is valid by calling /api/v1/me."""
+        client = cls(token=token, session_id=session_id, lang=lang)
+        # This will raise if the token is invalid/expired
+        await client.get_me()
+        return client
+
     @classmethod
     async def dev_login(cls, cif: str, session_id: str, lang: str = "en") -> "BankClient":
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:

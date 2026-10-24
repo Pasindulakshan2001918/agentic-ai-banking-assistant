@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -146,5 +147,50 @@ public class ReadController {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CARD", "Card not found or already blocked.");
         }
         return Map.of("status", "COMPLETED", "message", "Card successfully blocked.");
+    }
+
+    @GetMapping("/transactions")
+    public Map<String, Object> transactions(HttpServletRequest req,
+            @RequestParam(defaultValue = "15") int limit) {
+        RequestMeta meta = RequestMeta.from(req);
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        List<Map<String, Object>> list = jdbc.sql(
+            "SELECT t.id, t.txn_ref, t.action_type, t.amount, t.fee, t.currency, t.status, " +
+            "       t.remarks, t.counterparty, t.channel, t.created_at, a.account_no " +
+            "FROM transactions t LEFT JOIN accounts a ON a.id = t.from_account_id " +
+            "WHERE t.customer_id = ? ORDER BY t.created_at DESC LIMIT ?")
+            .param(1, meta.customerId())
+            .param(2, safeLimit)
+            .query().listOfRows();
+        return Map.of("transactions", list);
+    }
+
+    public record AddPayeeRequest(String nickname, String beneficiaryName, String bankCode, String bankName, String accountNo) {}
+
+    @PostMapping("/payees")
+    public Map<String, Object> addPayee(HttpServletRequest req, @RequestBody AddPayeeRequest body) {
+        RequestMeta meta = RequestMeta.from(req);
+        if (body.nickname() == null || body.nickname().isBlank() ||
+            body.beneficiaryName() == null || body.beneficiaryName().isBlank() ||
+            body.accountNo() == null || body.accountNo().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "MISSING_FIELDS", "Nickname, beneficiary name, and account number are required.");
+        }
+        String bankCode = (body.bankCode() != null && !body.bankCode().isBlank()) ? body.bankCode().trim() : "7010";
+        String bankName = (body.bankName() != null && !body.bankName().isBlank()) ? body.bankName().trim() : "Bank of Ceylon";
+
+        java.util.UUID id = jdbc.sql(
+            "INSERT INTO payees (customer_id, nickname, beneficiary_name, bank_code, bank_name, account_no) " +
+            "VALUES (?, ?, ?, ?, ?, ?) " +
+            "ON CONFLICT (customer_id, bank_code, account_no) DO UPDATE SET nickname = EXCLUDED.nickname, beneficiary_name = EXCLUDED.beneficiary_name " +
+            "RETURNING id")
+            .param(1, meta.customerId())
+            .param(2, body.nickname().trim())
+            .param(3, body.beneficiaryName().trim())
+            .param(4, bankCode)
+            .param(5, bankName)
+            .param(6, body.accountNo().trim())
+            .query(java.util.UUID.class).single();
+
+        return Map.of("id", id, "status", "SUCCESS", "message", "Payee saved successfully.");
     }
 }

@@ -6,6 +6,7 @@ import com.lunorlabs.bank.action.InsufficientFundsException;
 import com.lunorlabs.bank.action.Summary;
 import com.lunorlabs.bank.common.ApiException;
 import com.lunorlabs.bank.common.Json;
+import com.lunorlabs.bank.domain.Account;
 import com.lunorlabs.bank.domain.PendingAction;
 import com.lunorlabs.bank.repo.AccountRepo;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,32 @@ public class LedgerService {
         }
         if (plan.creditAccountId() != null) {
             accounts.credit(plan.creditAccountId(), plan.amount());
+
+            // If recipient account belongs to a different customer, record incoming transaction
+            accounts.findById(plan.creditAccountId()).ifPresent(creditAcc -> {
+                if (!creditAcc.customerId().equals(p.customerId())) {
+                    Account senderAcc = accounts.findById(plan.fromAccountId()).orElse(null);
+                    String senderLabel = senderAcc != null ? ("Account " + senderAcc.accountNo()) : "Customer";
+                    String cpJson = Json.write(om, Map.of(
+                            "type", "TRANSFER_RECEIVED",
+                            "senderAccountNo", senderAcc != null ? senderAcc.accountNo() : "",
+                            "remarks", plan.remarks() != null ? plan.remarks() : "Transfer received"
+                    ));
+                    jdbc.sql("""
+                        INSERT INTO transactions
+                          (txn_ref, customer_id, from_account_id, action_type,
+                           counterparty, amount, fee, remarks)
+                        VALUES ('TXN-' || to_char(now() AT TIME ZONE 'Asia/Colombo', 'YYYYMMDD') || '-' || nextval('txn_ref_seq'),
+                                :cust, :acc, 'FUND_TRANSFER', CAST(:cp AS jsonb), :amt, 0, :rem)
+                        """)
+                        .param("cust", creditAcc.customerId())
+                        .param("acc", creditAcc.id())
+                        .param("cp", cpJson)
+                        .param("amt", plan.amount())
+                        .param("rem", "Transfer received from " + senderLabel + (plan.remarks() != null ? (": " + plan.remarks()) : ""))
+                        .update();
+                }
+            });
         }
 
         String snapshot = Json.write(om, Map.of("summary", summary, "counterparty", plan.counterparty()));

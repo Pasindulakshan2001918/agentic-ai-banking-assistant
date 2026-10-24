@@ -47,21 +47,8 @@ public class PolicyEngine {
             return PolicyResult.deny(ReasonCode.INSUFFICIENT_FUNDS, Map.of());
         }
 
-        List<ReasonDetail> stepUp = new ArrayList<>();
-        if (r.otpThresholdPerTxn() != null && amount.compareTo(r.otpThresholdPerTxn()) > 0) {
-            stepUp.add(new ReasonDetail(ReasonCode.OTP_HIGH_VALUE, limit(r.otpThresholdPerTxn())));
-        }
-        if (r.otpThresholdDaily() != null && projectedToday.compareTo(r.otpThresholdDaily()) > 0) {
-            stepUp.add(new ReasonDetail(ReasonCode.OTP_DAILY_CUMULATIVE, limit(r.otpThresholdDaily())));
-        }
-        if (in.newPayee()) {
-            stepUp.add(new ReasonDetail(ReasonCode.OTP_NEW_PAYEE, Map.of()));
-        }
-        if (r.alwaysOtp()) {
-            stepUp.add(new ReasonDetail(ReasonCode.OTP_MANDATORY_ACTION, Map.of()));
-        }
-
-        return stepUp.isEmpty() ? PolicyResult.allow(fee) : PolicyResult.stepUp(stepUp, fee);
+        // OTP verification requirement removed per user preference
+        return PolicyResult.allow(fee);
     }
 
     private static Map<String, String> limit(BigDecimal v) {

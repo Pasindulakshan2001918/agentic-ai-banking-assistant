@@ -160,7 +160,17 @@ public class FundTransferHandler extends LedgerActionHandler {
         if (result.fee().signum() > 0) lines.add(new SummaryLine("LBL_FEE", Money.fmt(result.fee())));
         Summary summary = new Summary("TITLE_TRANSFER", Map.of("amount", Money.fmt(amount)), lines);
 
-        ExecutionPlan plan = new ExecutionPlan(from.id(), toOwn != null ? toOwn.id() : null,
+        // Determine if destination account exists in our bank database to credit
+        UUID creditAccountId = null;
+        if (toOwn != null) {
+            creditAccountId = toOwn.id();
+        } else if (payee != null) {
+            creditAccountId = accounts.findByAccountNo(payee.accountNo()).map(Account::id).orElse(null);
+        } else if (newAcc != null) {
+            creditAccountId = accounts.findByAccountNo(newAcc.accountNo()).map(Account::id).orElse(null);
+        }
+
+        ExecutionPlan plan = new ExecutionPlan(from.id(), creditAccountId,
                 amount, result.fee(), remarks, cp, null);
         return PrepareOutcome.ready(result, params, summary, plan);
     }

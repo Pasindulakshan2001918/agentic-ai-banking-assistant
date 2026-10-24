@@ -31,6 +31,18 @@ public class AccountRepo {
                 .param("id", id).param("c", customerId).query(MAP).optional();
     }
 
+    public Optional<Account> findById(UUID id) {
+        if (id == null) return Optional.empty();
+        return jdbc.sql("SELECT * FROM accounts WHERE id = :id AND status <> 'CLOSED'")
+                .param("id", id).query(MAP).optional();
+    }
+
+    public Optional<Account> findByAccountNo(String accountNo) {
+        if (accountNo == null || accountNo.isBlank()) return Optional.empty();
+        return jdbc.sql("SELECT * FROM accounts WHERE account_no = :no AND status = 'ACTIVE'")
+                .param("no", accountNo.trim()).query(MAP).optional();
+    }
+
     /** Atomic conditional debit: returns false (and changes nothing) if funds are insufficient. */
     public boolean debit(UUID accountId, BigDecimal amount) {
         return jdbc.sql("UPDATE accounts SET balance = balance - :a WHERE id = :id AND status = 'ACTIVE' AND balance >= :a")

@@ -88,7 +88,7 @@ public class ActionService {
             return PrepareResponse.denied(type, codes, explanation);
         }
 
-        boolean stepUp = o.decision() == Decision.STEP_UP;
+        boolean stepUp = false; // OTP requirement removed per user preference
         String token = HexFormat.of().formatHex(randomBytes(32));
         OffsetDateTime expires = OffsetDateTime.now().plusMinutes(props.action().ttlMinutes());
         UUID id = pendings.insert(cust, sid, type.name(), Json.write(om, o.params()), Json.write(om, o.summary()),
@@ -141,7 +141,7 @@ public class ActionService {
             return body;
         }
 
-        boolean needOtp = "STEP_UP".equals(p.decision()) || o.decision() == Decision.STEP_UP;
+        boolean needOtp = false; // OTP requirement removed per user preference
         if (needOtp) {
             if (otpCode == null || otpCode.isBlank() || !otp.hasChallenge(p.id())) {
                 String devOtp = otp.hasChallenge(p.id()) ? null : otp.issue(p.id(), meta.customerId());

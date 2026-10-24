@@ -56,12 +56,12 @@ $ready = $false
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 2
     try {
-        $body = '{"cif":"CIF0001"}'
-        $r = Invoke-WebRequest -Uri "http://localhost:8081/api/v1/auth/dev-login" `
-             -Method POST -ContentType "application/json" -Body $body `
-             -ErrorAction SilentlyContinue -UseBasicParsing
-        if ($r.StatusCode -eq 200) { $ready = $true; break }
-    } catch { }
+        $r = Invoke-WebRequest -Uri "http://localhost:8081/api/v1/admin/login" `
+             -Method OPTIONS -ErrorAction SilentlyContinue -UseBasicParsing
+        if ($r.StatusCode -in 200, 400, 401, 405) { $ready = $true; break }
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -in 200, 400, 401, 405) { $ready = $true; break }
+    }
 }
 if (-not $ready) {
     Write-Host "  [WARN] Spring Boot did not respond in 60s. Check the minimised window." -ForegroundColor Red

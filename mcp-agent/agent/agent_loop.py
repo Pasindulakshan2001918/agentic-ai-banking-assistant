@@ -158,6 +158,30 @@ _TOOLS = [
                 "card_id": {"type": "string"}
             }, "required": ["card_id"]},
         },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_transaction_history",
+            "description": "Get customer's recent financial transactions (transfers, bill payments).",
+            "parameters": {"type": "object", "properties": {
+                "limit": {"type": "integer", "default": 10}
+            }, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_payee",
+            "description": "Add and save a new payee/beneficiary for fund transfers.",
+            "parameters": {"type": "object", "properties": {
+                "nickname": {"type": "string"},
+                "beneficiary_name": {"type": "string"},
+                "account_no": {"type": "string"},
+                "bank_name": {"type": "string", "default": "Bank of Ceylon"},
+                "bank_code": {"type": "string", "default": "7010"}
+            }, "required": ["nickname", "beneficiary_name", "account_no"]},
+        },
     }
 ]
 
@@ -166,19 +190,21 @@ _TOOLS = [
 async def _dispatch(name: str, args: dict, session: Session) -> Any:
     """Call the right tool function, always injecting the session."""
     fn_map = {
-        "get_accounts":          tool_module.get_accounts,
-        "get_payees":            tool_module.get_payees,
-        "search_billers":        tool_module.search_billers,
-        "get_registered_billers":tool_module.get_registered_billers,
-        "prepare_fund_transfer": tool_module.prepare_fund_transfer,
-        "prepare_bill_payment":  tool_module.prepare_bill_payment,
-        "confirm_action":        tool_module.confirm_action,
-        "resend_otp":            tool_module.resend_otp,
-        "cancel_action":         tool_module.cancel_action,
-        "get_receipt":           tool_module.get_receipt,
-        "get_cards":             tool_module.get_cards,
-        "get_loans":             tool_module.get_loans,
-        "block_card":            tool_module.block_card,
+        "get_accounts":           tool_module.get_accounts,
+        "get_payees":             tool_module.get_payees,
+        "add_payee":              tool_module.add_payee,
+        "search_billers":         tool_module.search_billers,
+        "get_registered_billers": tool_module.get_registered_billers,
+        "prepare_fund_transfer":  tool_module.prepare_fund_transfer,
+        "prepare_bill_payment":   tool_module.prepare_bill_payment,
+        "confirm_action":         tool_module.confirm_action,
+        "resend_otp":             tool_module.resend_otp,
+        "cancel_action":          tool_module.cancel_action,
+        "get_receipt":            tool_module.get_receipt,
+        "get_cards":              tool_module.get_cards,
+        "get_loans":              tool_module.get_loans,
+        "block_card":             tool_module.block_card,
+        "get_transaction_history":tool_module.get_transaction_history,
     }
     fn = fn_map.get(name)
     if fn is None:

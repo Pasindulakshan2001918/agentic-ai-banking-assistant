@@ -178,6 +178,44 @@ async def block_card(session: Session, card_id: str) -> dict:
         log.error("block_card: %s", e)
         return {"status": "ERROR", "tell_user": "Unable to block the card. Please try again.", "error": str(e)}
 
+@mcp.tool()
+async def get_transaction_history(session: Session, limit: int = 10) -> dict:
+    """Return the customer's recent financial transactions (transfers, bill payments, references, dates)."""
+    try:
+        txns = await _client(session).get_transactions(limit=limit)
+        return {"transactions": txns, "count": len(txns)}
+    except Exception as e:
+        log.error("get_transaction_history: %s", e)
+        return {"error": str(e)}
+
+@mcp.tool()
+async def add_payee(
+    session: Session,
+    nickname: str,
+    beneficiary_name: str,
+    account_no: str,
+    bank_name: str = "Bank of Ceylon",
+    bank_code: str = "7010",
+) -> dict:
+    """Save a new beneficiary / payee for future fund transfers."""
+    try:
+        result = await _client(session).add_payee(
+            nickname=nickname,
+            beneficiary_name=beneficiary_name,
+            account_no=account_no,
+            bank_code=bank_code,
+            bank_name=bank_name,
+        )
+        return {
+            "status": "COMPLETED",
+            "tell_user": f"Payee '{nickname}' ({beneficiary_name}) has been saved successfully.",
+            "next_action": "done",
+            "payee_id": result.get("id"),
+        }
+    except Exception as e:
+        log.error("add_payee: %s", e)
+        return {"status": "ERROR", "tell_user": "Unable to save payee. Please check the account number and try again.", "error": str(e)}
+
 # ─────────────────────────────── prepare tools ────────────────────────────────
 
 @mcp.tool()

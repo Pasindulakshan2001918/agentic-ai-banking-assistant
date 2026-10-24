@@ -10,7 +10,7 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -35,7 +35,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 
 class LoginRequest(BaseModel):
-    cif: str
+    cif: str = ""          # kept for backward compat (dev mode)
+    token: str = ""        # JWT from Spring Boot — preferred in production
     lang: str = "en"
 
 class SignupRequest(BaseModel):
@@ -46,8 +47,9 @@ class SignupRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    session_id: str
+    session_id: str = ""
     message: str
+    token: str = ""
 
 
 class ChatResponse(BaseModel):
@@ -58,10 +60,17 @@ class ChatResponse(BaseModel):
 
 @app.post("/login")
 async def login(req: LoginRequest):
-    """Dev login — creates a session and returns session_id."""
+    """Login to create an agent session.
+    Accepts either a JWT token (production) or a CIF (dev-login mode).
+    """
     sid = str(uuid.uuid4())
     try:
-        client = await BankClient.dev_login(req.cif, sid, req.lang)
+        if req.token:
+            # Production path: mobile sends the JWT it already obtained from Spring Boot
+            client = await BankClient.from_token(req.token, sid, req.lang)
+        else:
+            # Dev-login fallback: login by CIF (only when dev-login-enabled=true)
+            client = await BankClient.dev_login(req.cif, sid, req.lang)
         me = await client.get_me()
         s = session_store.get_or_create(sid, client._token, client._lang)
         s.customer_name = me.get("fullName")
@@ -69,7 +78,7 @@ async def login(req: LoginRequest):
         return {"session_id": sid, "customer_name": s.customer_name,
                 "lang": s.lang, "preferred_language": me.get("preferredLanguage")}
     except Exception as e:
-        log.error("login failed cif=%s: %s", req.cif, e)
+        log.error("login failed: %s", e)
         raise HTTPException(status_code=401, detail=str(e))
 
 @app.post("/signup")
@@ -90,16 +99,33 @@ async def signup(req: SignupRequest):
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest, authorization: str | None = Header(None)):
     """Main conversation endpoint."""
-    s = session_store.get(req.session_id)
+    token = req.token
+    if not token and authorization and authorization.startswith("Bearer "):
+        token = authorization[7:].strip()
+
+    s = session_store.get(req.session_id) if req.session_id else None
+    if not s and token:
+        # Transparently restore/create session from JWT if session was lost/reloaded
+        sid = req.session_id if req.session_id else str(uuid.uuid4())
+        try:
+            client = await BankClient.from_token(token, sid, "en")
+            me = await client.get_me()
+            s = session_store.get_or_create(sid, client._token, client._lang)
+            s.customer_name = me.get("fullName")
+            s.lang = (me.get("preferredLanguage") or "en").lower()[:2]
+            log.info("Auto-restored session %s for user %s", sid, s.customer_name)
+        except Exception as e:
+            log.warning("Could not auto-restore session from token: %s", e)
+
     if not s:
         raise HTTPException(status_code=404, detail="Session not found. Please log in again.")
     try:
         reply = await chat(req.message, s)
-        return ChatResponse(session_id=req.session_id, reply=reply, lang=s.lang)
+        return ChatResponse(session_id=s.session_id, reply=reply, lang=s.lang)
     except Exception as e:
-        log.error("chat error session=%s: %s", req.session_id, e)
+        log.error("chat error session=%s: %s", s.session_id if s else req.session_id, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Agent error. Please try again.")
 
 

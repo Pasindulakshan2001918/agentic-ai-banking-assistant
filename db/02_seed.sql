@@ -1,49 +1,18 @@
--- Demo seed data. All names, numbers and limits are FICTIONAL demo values.
--- Have a native speaker review the Sinhala/Tamil strings before you demo.
-
--- ---------- Customers (fixed UUIDs so tests can reference them) --------
-INSERT INTO customers (id, cif, full_name, mobile, email, preferred_language) VALUES
- ('11111111-1111-1111-1111-111111111111','CIF0001','Nimal Perera',  '0771234567','nimal@example.com','SI'),
- ('22222222-2222-2222-2222-222222222222','CIF0002','Kavitha Rajan', '0779876543','kavitha@example.com','TA'),
- ('33333333-3333-3333-3333-333333333333','CIF0003','Ruwan Silva',   '0712223344','ruwan@example.com','EN');
-
-INSERT INTO accounts (id, customer_id, account_no, product_type, nickname, balance) VALUES
- ('a1111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','1000000001','SAVINGS','Main savings', 250000.00),
- ('a1111111-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','2000000001','CURRENT','Current',      85000.00),
- ('a2222222-0000-0000-0000-000000000001','22222222-2222-2222-2222-222222222222','1000000002','SAVINGS','Savings',      120000.00),
- ('a3333333-0000-0000-0000-000000000001','33333333-3333-3333-3333-333333333333','1000000003','SAVINGS','Savings',       30000.00);
-
-INSERT INTO cards (id, customer_id, card_type, card_last4, nickname, credit_limit, outstanding_balance, min_due, statement_due_date) VALUES
- ('c1111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','CREDIT','4417','Visa Gold', 300000, 45250.00, 4525.00, CURRENT_DATE + 6),
- ('c2222222-0000-0000-0000-000000000001','22222222-2222-2222-2222-222222222222','CREDIT','9021','Visa Classic', 150000, 12000.00, 1200.00, CURRENT_DATE + 12);
-
-INSERT INTO loans (id, customer_id, loan_no, product_type, principal, outstanding, installment_amount, next_due_date) VALUES
- ('d1111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','LN00001','LOAN', 1000000, 640000, 28500.00, CURRENT_DATE + 4);
-
-INSERT INTO payees (customer_id, nickname, beneficiary_name, bank_code, bank_name, account_no, added_at) VALUES
- ('11111111-1111-1111-1111-111111111111','Amma',       'K. Perera',      '7010','Demo Bank',      '5550001111', now() - interval '90 days'),
- ('11111111-1111-1111-1111-111111111111','Landlord',   'S. Fernando',    '7135','Other Demo Bank','5550002222', now() - interval '3 hours');  -- inside cooling window
+-- Bank catalog & policy seed data (billers, branches, FAQs, product rules)
+-- Real customer accounts are created by the bank admin via the Admin Panel.
 
 -- ---------- Billers ---------------------------------------------------
 INSERT INTO billers (id, code, name_en, name_si, name_ta, category, reference_label, aliases) VALUES
  ('b0000000-0000-0000-0000-000000000001','CEB',    'Ceylon Electricity Board', 'ලංකා විදුලිබල මණ්ඩලය', 'இலங்கை மின்சார சபை', 'ELECTRICITY','Account number','{ceb,electricity,current bill,light bill,විදුලි,மின்சாரம்}'),
- ('b0000000-0000-0000-0000-000000000002','NWSDB',  'National Water Supply & Drainage Board','ජාතික ජල සම්පාදන හා ජලාපවහන මණ්ඩලය','தேசிய நீர் வழங்கல் மற்றும் வடிகாலமைப்புச் சபை','WATER','Account number','{water,nwsdb,වතුර,ජල,தண்ணீர்}'),
- ('b0000000-0000-0000-0000-000000000003','DIALOG','Dialog Axiata','ඩයලොග්','டயலொக்','TELECOM','Mobile / account number','{dialog,mobile bill,phone bill,ඩයලොග්,டயலொக்}'),
+ ('b0000000-0000-0000-0000-000000000002','NWSDB',  'National Water Supply & Drainage Board','ජාතික ජල සම්පාදන හා ජලාපවහන මණ්ඩලය','தேசிய நீர் வழங்கல் மற்றும் வடிகாலமைப்புச் සபை','WATER','Account number','{water,nwsdb,වතුර,ජල,தண்ணீர்}'),
+ ('b0000000-0000-0000-0000-000000000003','DIALOG','Dialog Axiata','ඩයලොග්','டயலொக்','TELECOM','Mobile / account number','{dialog,mobile bill,phone bill,ඩයලොග්,டயලොක්}'),
  ('b0000000-0000-0000-0000-000000000004','SLT',   'SLT-Mobitel','ශ්‍රී ලංකා ටෙලිකොම්','ஸ்ரீ லங்கா டெலிகொம்','TELECOM','Telephone number','{slt,mobitel,telephone,broadband}');
 
-INSERT INTO registered_billers (id, customer_id, biller_id, reference_no, nickname) VALUES
- ('e1111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','b0000000-0000-0000-0000-000000000001','0123456789','Home electricity'),
- ('e1111111-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','b0000000-0000-0000-0000-000000000003','0771234567','My Dialog');
-
-INSERT INTO bill_dues (registered_biller_id, amount_due, due_date) VALUES
- ('e1111111-0000-0000-0000-000000000001', 5000.00, CURRENT_DATE + 3),
- ('e1111111-0000-0000-0000-000000000002', 1850.00, CURRENT_DATE + 8);
-
--- ---------- Policy: product matrix & OTP mandates (DEMO values) ---------
+-- ---------- Policy: product matrix & OTP mandates ---------------------
 INSERT INTO product_rules
  (action_type, source_product, rail, min_amount, max_per_txn, max_daily, otp_threshold_per_txn, otp_threshold_daily, always_otp, fee_flat, fee_pct, notes) VALUES
  ('FUND_TRANSFER',        'ANY',    'INTERNAL', 1,   1000000, 2000000, 25000, 50000, false,  0, 0,      'Own / same-bank transfers'),
- ('FUND_TRANSFER',        'ANY',    'JUSTPAY',  1,    500000, 1000000, 10000, 25000, false, 25, 0,      'Inter-bank via JustPay (demo limits)'),
+ ('FUND_TRANSFER',        'ANY',    'JUSTPAY',  1,    500000, 1000000, 10000, 25000, false, 25, 0,      'Inter-bank via JustPay (limits)'),
  ('BILL_PAYMENT',         'ANY',    'INTERNAL', 1,    200000,  500000, 20000, 50000, false,  0, 0,      NULL),
  ('MOBILE_RELOAD',        'ANY',    'INTERNAL', 50,    10000,   30000, 5000,  15000, false,  0, 0,      NULL),
  ('CREDIT_CARD_PAYMENT',  'ANY',    'INTERNAL', 1,    500000, 1000000, 50000, 100000,false,  0, 0,      NULL),
@@ -56,7 +25,7 @@ INSERT INTO product_rules
  ('SAVINGS_OPEN',         'ANY',    'INTERNAL', 1000, NULL,   NULL,    NULL,  NULL,   false, 0, 0,      NULL),
  ('SERVICE_REQUEST',      'ANY',    'INTERNAL', 0,   NULL,    NULL,    NULL,  NULL,   false, 0, 0,      NULL);
 
--- ---------- Branches / ATMs (approximate demo coordinates) --------------
+-- ---------- Branches / ATMs ------------------------------------------
 INSERT INTO branches (kind, name_en, name_si, name_ta, city, address, latitude, longitude, opening_hours, services) VALUES
  ('BRANCH','Colombo Fort Branch','කොළඹ කොටුව ශාඛාව','கொழும்பு கோட்டை கிளை','Colombo','Demo address, Fort, Colombo 01', 6.9344, 79.8428,'Mon-Fri 09:00-16:00','{deposits,loans,pawning,cheque_book}'),
  ('ATM',   'Colombo Fort ATM',   'කොළඹ කොටුව ATM','கொழும்பு கோட்டை ATM','Colombo','Demo address, Fort, Colombo 01', 6.9350, 79.8420,'24 hours','{cash_withdrawal,balance}'),
@@ -77,25 +46,7 @@ INSERT INTO faqs (category, question_en, question_si, question_ta, answer_en, an
 
 INSERT INTO promotions (title_en, title_si, title_ta, body_en, body_si, body_ta, valid_from, valid_to) VALUES
  ('Fixed Deposit Bonus','ස්ථාවර තැන්පතු ප්‍රසාද','நிலையான வைப்பு போனஸ்',
-  'Open a 12-month FD this month and get +0.5% interest (demo promotion).',
-  'මෙම මාසයේ මාස 12ක ස්ථාවර තැන්පතුවක් ආරම්භ කර +0.5% පොලී ලබාගන්න (demo).',
-  'இந்த மாதம் 12 மாத நிலையான வைப்பைத் தொடங்கி +0.5% வட்டி பெறுங்கள் (demo).',
+  'Open a 12-month FD this month and get +0.5% interest (bank promotion).',
+  'මෙම මාසයේ මාස 12ක ස්ථාවර තැන්පතුවක් ආරම්භ කර +0.5% පොලී ලබාගන්න.',
+  'இந்த மாதம் 12 மாத நிலையான வைப்பைத் தொடங்கி +0.5% வட்டி பெறுங்கள்.',
   CURRENT_DATE - 5, CURRENT_DATE + 25);
-
--- ---------- i18n messages (policy explanations) ------------------------
-INSERT INTO i18n_messages (msg_key, lang, text) VALUES
- ('OTP_HIGH_VALUE','EN','This requires an OTP because the amount exceeds your OTP-free limit of {limit}.'),
- ('OTP_HIGH_VALUE','SI','මෙම මුදල ඔබේ OTP රහිත සීමාව වන {limit} ඉක්මවන නිසා OTP අවශ්‍ය වේ.'),
- ('OTP_HIGH_VALUE','TA','இந்தத் தொகை உங்கள் OTP இல்லாத வரம்பான {limit} ஐ மீறுவதால் OTP தேவை.'),
- ('ABOVE_DAILY_LIMIT','EN','This exceeds your daily limit of {limit}.'),
- ('ABOVE_DAILY_LIMIT','SI','මෙය ඔබේ දෛනික සීමාව වන {limit} ඉක්මවයි.'),
- ('ABOVE_DAILY_LIMIT','TA','இது உங்கள் தினசரி வரம்பான {limit} ஐ மீறுகிறது.'),
- ('INSUFFICIENT_FUNDS','EN','Your available balance is not enough for this transaction.'),
- ('INSUFFICIENT_FUNDS','SI','මෙම ගනුදෙනුව සඳහා ඔබගේ ගිණුම් ශේෂය ප්‍රමාණවත් නොවේ.'),
- ('INSUFFICIENT_FUNDS','TA','இந்தப் பரிவர்த்தனைக்கு உங்கள் கணக்கு இருப்பு போதாது.'),
- ('OTP_NEW_PAYEE','EN','An OTP is required because this is a new payee.'),
- ('OTP_NEW_PAYEE','SI','මෙය නව ගෙවීම් ලබන්නෙකු නිසා OTP අවශ්‍ය වේ.'),
- ('OTP_NEW_PAYEE','TA','இது புதிய பயனாளி என்பதால் OTP தேவை.'),
- ('OTP_MANDATORY_ACTION','EN','An OTP is required for this sensitive action.'),
- ('OTP_MANDATORY_ACTION','SI','මෙම සංවේදී ක්‍රියාව සඳහා OTP අවශ්‍ය වේ.'),
- ('OTP_MANDATORY_ACTION','TA','இந்த முக்கியமான செயலுக்கு OTP தேவை.');
